@@ -6,7 +6,7 @@ def opendbread(tablename):
   return tsv_file
 
 def openlocread(tablename):
-  tsv_file = open("extract/text/db/" + tablename + "__.tsv", encoding="utf-8")
+  tsv_file = open("extract/text/db/" + tablename + ".tsv", encoding="utf-8")
   return tsv_file
 
 
@@ -177,19 +177,21 @@ def ability_phase_details_stats(phaseid, indent = 0, title=""):
   unbreakable = "unbreakable " if details[ability_phase_details_key["unbreakable"]] == 'true' else ""
   cantmove = "cant_move " if details[ability_phase_details_key["cant_move"]] == 'true' else ""
   freeze_fatigue = "freeze_fatigue " if details[ability_phase_details_key["freeze_fatigue"]] == 'true' else ""
-  fatigue_change_ratio = "fatigue_change_ratio: " + numstr(details[ability_phase_details_key["fatigue_change_ratio"]]) + " " if details[ability_phase_details_key["fatigue_change_ratio"]] != '0.0' else ""
-  duration = "(" + numstr(details[ability_phase_details_key["duration"]]) +"s) " if details[ability_phase_details_key["duration"]] != "-1.0" else ""
+  fatigue_change_ratio = "fatigue_change_ratio: " + details[ability_phase_details_key["fatigue_change_ratio"]] + " " if details[ability_phase_details_key["fatigue_change_ratio"]] != '0.0' else ""
+  duration = "(" + details[ability_phase_details_key["duration"]] +"s) " if details[ability_phase_details_key["duration"]] != "-1.0" else ""
   col = "yellow"
   if details[ability_phase_details_key["effect_type"]] == 'positive':
     col = "green"
   elif details[ability_phase_details_key["effect_type"]] == 'negative':
     col = "red"
-  replenish_ammo = "replenish_ammo: " + numstr(details[ability_phase_details_key["replenish_ammo"]]) +" " if details[ability_phase_details_key["replenish_ammo"]] != "0.0" else ""
-  recharge_time = "recharge_time: " + numstr(details[ability_phase_details_key["recharge_time"]]) +" " if details[ability_phase_details_key["recharge_time"]] != "-1.0" else ""
-  mana_regen_mod = "mana_recharge_mod: " + numstr(details[ability_phase_details_key["mana_regen_mod"]]) +" " if details[ability_phase_details_key["mana_regen_mod"]] != "0.0" else ""
-  mana_max_depletion_mod = "mana_reserves_mod: " + numstr(details[ability_phase_details_key["mana_max_depletion_mod"]]) +" " if details[ability_phase_details_key["mana_max_depletion_mod"]] != "0.0" else ""
-  aura_range_mod = "inspiration_range_mod: " + numstr(details[ability_phase_details_key["inspiration_aura_range_mod"]]) +" " if details[ability_phase_details_key["inspiration_aura_range_mod"]] != "0.0" else ""
-  ability_recharge_change = "reduce_current_cooldowns: " + numstr(details[ability_phase_details_key["ability_recharge_change"]]) +" " if details[ability_phase_details_key["ability_recharge_change"]] != "0.0" else ""
+  replenish_ammo = "" #"replenish_ammo: " + details[ability_phase_details_key["replenish_ammo"]] +" " if details[ability_phase_details_key["replenish_ammo"]] != "0.0" else ""
+  if details[ability_phase_details_key['unkbool28']] == "true":
+    replenish_ammo += "unkbool28"
+  recharge_time = "recharge_time: " + details[ability_phase_details_key["recharge_time"]] +" " if details[ability_phase_details_key["recharge_time"]] != "-1.0" else ""
+  mana_regen_mod = "mana_recharge_mod: " + details[ability_phase_details_key["mana_regen_mod"]] +" " if details[ability_phase_details_key["mana_regen_mod"]] != "0.0" else ""
+  mana_max_depletion_mod = "mana_reserves_mod: " + details[ability_phase_details_key["mana_max_depletion_mod"]] +" " if details[ability_phase_details_key["mana_max_depletion_mod"]] != "0.0" else ""
+  aura_range_mod = "inspiration_range_mod: " + details[ability_phase_details_key["inspiration_aura_range_mod"]] +" " if details[ability_phase_details_key["inspiration_aura_range_mod"]] != "0.0" else ""
+  ability_recharge_change = "reduce_current_cooldowns: " + details[ability_phase_details_key["ability_recharge_change"]] +" " if details[ability_phase_details_key["ability_recharge_change"]] != "0.0" else ""
   result += indentstr(indent) + title + "[[col:" + col + "]] " + duration +  replenish_ammo +  unbreakable + mana_regen_mod + mana_max_depletion_mod + cantmove + freeze_fatigue + fatigue_change_ratio + aura_range_mod  + ability_recharge_change + recharge_time + "[[/col]]\\\\n"
   # affects_allies + affects_enemies +
   if int(details[ability_phase_details_key["heal_amount"]]) != 0:
@@ -239,73 +241,6 @@ for row in read_tsv:
       projectiles_explosions[row[projectiles_explosions_keys["key"]]] = row
 tsv_file.close()
 
-# projectiles_shrapnels
-tsv_file = opendbread("projectile_shrapnels_tables")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-shrapnels = {}
-
-rowid = 0
-shrapnels_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        shrapnels_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      shrapnels[row[shrapnels_keys["key"]]] = row
-tsv_file.close()
-
-# unit_missile_weapon_junctions
-tsv_file = opendbread("unit_missile_weapon_junctions_tables")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-missile_weapon_junctions = {}
-missile_weapon_for_junction = {}
-
-rowid = 0
-missile_weapon_junctions_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        missile_weapon_junctions_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-    key = row[missile_weapon_junctions_keys["unit"]]
-    if key not in missile_weapon_junctions:
-        missile_weapon_junctions[key] = []
-    missile_weapon_junctions[key].append(row)
-
-    key = row[missile_weapon_junctions_keys["id"]]
-    missile_weapon_for_junction[key] = row
-tsv_file.close()
-
-# effect_bonus_missile_junction
-tsv_file = opendbread("effect_bonus_value_missile_weapon_junctions_tables")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-effect_bonus_missile_junctions = {}
-
-rowid = 0
-effect_bonus_missile_junctions_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        effect_bonus_missile_junctions_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-    key = row[effect_bonus_missile_junctions_keys["effect"]]
-    if key not in effect_bonus_missile_junctions:
-        effect_bonus_missile_junctions[key] = []
-    effect_bonus_missile_junctions[key].append(row)
-tsv_file.close()
-
 # ground_type_to_stat_effects_tables
 tsv_file = opendbread("ground_type_to_stat_effects_tables")
 
@@ -352,28 +287,6 @@ for row in read_tsv:
       weapon_secondary_ammo[row[weapon_projectile_keys["key"]]] = row[weapon_projectile_keys["use_secondary_ammo_pool"]]
 tsv_file.close()
 
-# weapon additional projectiles
-tsv_file = opendbread("missile_weapons_to_projectiles_tables")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-weapon_alt_projectile = {}
-
-rowid = 0
-weapon_alt_projectile_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        weapon_alt_projectile_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      key = row[weapon_alt_projectile_keys["missile_weapon"]]
-      if key not in weapon_alt_projectile:
-        weapon_alt_projectile[key] = []
-      weapon_alt_projectile[key].append(row[weapon_alt_projectile_keys["projectile"]])
-tsv_file.close()
-
 # engine_to_weapon
 tsv_file = opendbread("battlefield_engines_tables")
 
@@ -415,6 +328,8 @@ for row in read_tsv:
   if rowid > 2:
       articulated_entity[row[articulated_entity_keys["key"]]] = row[articulated_entity_keys["articulated_entity"]]
 tsv_file.close()
+
+
 
 # mount_to_entity
 tsv_file = opendbread("mounts_tables")
@@ -726,7 +641,7 @@ def ability_damage_stat(base, ignition, magic, title="dmg"):
 def icon(name):
   return "[[img:ui/skins/default/" + name + ".png]][[/img]]"
 
-stat_icon = {"armour": icon("icon_stat_armour"), "melee_damage_ap": "melee_ap ", "fatigue": icon("fatigue"), "accuracy": "accuracy", "morale": icon("icon_stat_morale"), "melee_attack": icon("icon_stat_morale"), "charging": icon("icon_stat_charge_bonus"), "charge_bonus": icon("icon_stat_charge_bonus"), "range": icon("icon_stat_range"), "speed": icon("icon_stat_speed"), "reloading": icon("icon_stat_reload_time"), "melee_attack": icon("icon_stat_attack"), "melee_defence": icon("icon_stat_defence")}
+stat_icon = {"armour": icon("icon_stat_armour"), "melee_damage_ap": "melee_ap ", "fatigue": icon("fatigue"), "accuracy": "accuracy", "morale": icon("icon_stat_morale"), "melee_attack": icon("icon_stat_morale"), "charging": icon("icon_stat_charge_bonus"), "charge_bonus": icon("icon_stat_charge_bonus"), "range": icon("icon_stat_range"), "speed": icon("icon_stat_speed"), "reloading": "reloading_skill", "melee_attack": icon("icon_stat_attack"), "melee_defence": icon("icon_stat_defence")}
 
 def rank_icon(rank):
   if int(rank) == 0:
@@ -748,13 +663,6 @@ def explosion_stats(explosionrow, indent = 0):
   projectiletext += statindent("radius", explosionrow[projectiles_explosions_keys['detonation_radius']], indent)
   if explosionrow[projectiles_explosions_keys['affects_allies']] == "false":
     projectiletext += posstr("doesn't_affect_allies", indent) + endl
-  if explosionrow[projectiles_explosions_keys['shrapnel']]:
-    shrapnelrow = shrapnels[explosionrow[projectiles_explosions_keys['shrapnel']]]
-    projectiletext += statindent("explosion_shrapnel:", "", indent)
-    if shrapnelrow[shrapnels_keys['launch_type']] == "sector":
-      projectiletext += statindent("angle", shrapnelrow[shrapnels_keys['sector_angle']], 2+ indent)
-    projectiletext += statindent("amount", shrapnelrow[shrapnels_keys['amount']], 2 + indent)
-    projectiletext += missile_stats(projectiles[shrapnelrow[shrapnels_keys['projectile']]], None, "", 2 + indent, False)
   if explosionrow[projectiles_explosions_keys['contact_phase_effect']]:
     projectiletext += ability_phase_details_stats(explosionrow[projectiles_explosions_keys['contact_phase_effect']],  2 + indent, "contact effect")
   return projectiletext
@@ -876,6 +784,9 @@ def missile_stats(projectilerow, unit, projectilename, indent, traj = True):
     projectiletext += statindent("bonus vs nonlarge" ,projectilerow[projectiles_keys['bonus_v_infantry']], indent)
   if projectilerow[projectiles_keys['bonus_v_large']] != '0':
     projectiletext += statindent("bonus_vs_large ", projectilerow[projectiles_keys['bonus_v_large']], indent)
+  if projectilerow[projectiles_keys['unkint52']] != '0':
+    projectiletext += statindent("unkint52 ", projectilerow[projectiles_keys['unkint52']], indent)
+
   #todo: projectile_homing details
   # projectile_scaling_damages - scales damage with somebody's health
   if projectilerow[projectiles_keys['explosion_type']] != '':
@@ -894,7 +805,7 @@ def meleeweapon_stats(meleeid, indent = 0):
   # max splash targets Maximum entities to attack per splash attack animation. Note that High Priority targets (main units table) allways get treated focussed damage.
   # splash dmg multiplier: Multiplier to knock power in splash attack metadata
   # wallbreaker attribute says if can damage walls in melee
-  # todo: show dmg of a full rank of units?
+  # todo: show dmg per 10 secs and dmg of a full rank of units?
   building = ""
   if int(meleerow[melee_keys['building_damage']]) > 0:
     building = " (building: "+ statstr(meleerow[melee_keys['building_damage']])+ ")" # what about kv_rules["melee_weapon_building_damage_mult"]?
@@ -908,6 +819,16 @@ def meleeweapon_stats(meleeid, indent = 0):
   # never set:stats["bonus_v_cav"] = meleerow[melee_keys['bonus_v_cavalry']]
   if meleerow[melee_keys['bonus_v_large']] != "0":
     unit_desc += statindent("bonus_v_large", meleerow[melee_keys['bonus_v_large']], indent)
+  if meleerow[melee_keys['unkint24']] != "0":
+    unit_desc += statindent("bonus_v_heroes", meleerow[melee_keys['unkint24']], indent)
+  if meleerow[melee_keys['unkint23']] != "0": 
+    unit_desc += statindent("unkint23", meleerow[melee_keys['unkint23']], indent)
+  if meleerow[melee_keys['unkint22']] != "0": # bonus vs axemen
+    unit_desc += statindent("bonus_v_axemen", meleerow[melee_keys['unkint22']], indent)
+  if meleerow[melee_keys['unkint21']] != "0":
+    unit_desc += statindent("bonus_v_spearmen", meleerow[melee_keys['unkint21']], indent)
+  if meleerow[melee_keys['unkint20']] != "0": # bonus vs swordsmen
+    unit_desc += statindent("bonus_v_swordsmen", meleerow[melee_keys['unkint20']], indent)
   if meleerow[melee_keys['splash_attack_target_size']] != "":
     unit_desc += statindent("splash dmg:", "", indent)
     # confirmed by ca: blank means no splash damage
@@ -929,313 +850,9 @@ def missileweapon_stats(missileweapon, unit, indent = 0, title = "ranged"):
   projectiletext += indentstr(indent) + title + name + ":" + endl
   projectilerow = projectiles[projectileid]
   projectiletext += missile_stats(projectilerow, unit, name, indent + 2)
-  if missileweapon in weapon_alt_projectile:
-    for altprojectileid in weapon_alt_projectile[missileweapon]:
-      altprojectilerow = projectiles[altprojectileid]
-      name = altprojectilerow[projectiles_keys['shot_type']].split("_")[-1]
-      if name == 'default':
-        name = altprojectileid
-      if weapon_secondary_ammo[missileweapon] == "true":
-        name += "(secondary ammo)"
-      projectiletext += indentstr(indent) + title +" (" + name + "):" + endl
-      projectiletext += missile_stats(altprojectilerow, unit, name, indent + 2)
   return projectiletext
 
 endl = "\\\\n"
-
-# unit ability doesn't have anything intesting
-# unit_special_ability uses unit_ability as key according to dave
-# num_uses - charges?
-# active time - If this is a projectile then set -1 for active time
-# activated projectiles - projectiles table
-# target_friends/enemies/ground
-# assume_specific_behaviour - special_abilities_behaviour_types (cantabrian circle, etc.)
-# bombardment - projectile_bombardments table
-# spawned unit - land_units_table
-# vortex: battle_vortexs vortex_key
-# wind_up_stance, wind_down_stance -> special_ability_stance_enums
-# use_loop_stance - Entities will play a loop locomotion stance
-# mana_cost
-# min_range - "too close" error?
-# initial_recharge, recharge_time, wind_up_time
-# passive
-# effect_range
-# affect_self
-# num_effected_friendly_units
-# num_effected_enemy_unuits
-# update_targets_every_frame
-# clear_current_order
-# targetting_aoe -> area_of_effect_displays - This is the area of effect to display when targetting
-# passive_aoe -> area_of_effect_displays - This is the area of effect to display when ability has been ordered but not yet cast (like if unit has to move their to cast)
-# active_aoe -> area_of_effect_displays - This is the area of effect to display when ability is currently active (has been cast)
-# miscast chance - The unary chance of a miscast occuring
-# miscast_explosion -> projectiles_explosions
-# target_ground_under_allies
-# target_ground_under_enemies
-# target_self
-# target_intercept_range - ?
-# only_affect_owned_units - If it's affecting friendly units, it only affect those in the same army as the owner
-# spawn_is_decoy - If spawning a unit the new one will be understood as a decoy of the owner one, the UI will show data for the owning one
-# spawn_is_transformation - If spawning a unit will mean the owner unit will be replaced by the spawned one
-tsv_file = opendbread("unit_special_abilities_tables")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-ability_details = {}
-
-rowid = 0
-ability_details_key = {}
-new_ability_details = []
-ability_details_maxid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        ability_details_key[key] = i
-        i = i + 1
-  if rowid > 2:
-      ability_details[row[ability_details_key["key"]]] = row
-      newid = int(row[ability_details_key["unique_id"]])
-      if newid > ability_details_maxid:
-        ability_details_maxid = newid
-  new_ability_details.append(row)
-tsv_file.close()
-
-# unit_abilities_tables
-tsv_file = opendbread("unit_abilities_tables")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_unit_ability = [] 
-new_unit_ability_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      new_unit_ability_keys[key] = i
-      i = i + 1
-  new_unit_ability.append(row)
-
-# unit_sets_tables
-tsv_file = opendbread("unit_sets_tables")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_unit_set = [] 
-new_unit_set_for_key = {}
-new_unit_set_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      new_unit_set_keys[key] = i
-      i = i + 1
-  if rowid > 2:
-      new_unit_set_for_key[row[new_unit_set_keys["key"]]] = row
-  new_unit_set.append(row)
-
-# unit_sets_tables
-tsv_file = opendbread("unit_sets_tables")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_unit_set = [] 
-new_unit_set_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      new_unit_set_keys[key] = i
-      i = i + 1
-  new_unit_set.append(row)
-
-# unit_set_to_unit_junctions_tables
-tsv_file = opendbread("unit_set_to_unit_junctions_tables")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_unit_set_to_unit = [] 
-new_unit_set_to_unit_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      new_unit_set_to_unit_keys[key] = i
-      i = i + 1
-  new_unit_set_to_unit.append(row)
-
-# unit_set_unit_ability_junctions_tables
-tsv_file = opendbread("unit_set_unit_ability_junctions_tables")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_unit_set_ability = [] 
-new_unit_set_ability_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      new_unit_set_ability_keys[key] = i
-      i = i + 1
-  new_unit_set_ability.append(row)
-
-# effect_bonus_value_unit_set_unit_ability_junctions_tables
-tsv_file = opendbread("effect_bonus_value_unit_set_unit_ability_junctions_tables")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_effect_bonus_ability = [] 
-new_effect_bonus_ability_keys = {}
-new_effect_bonus_ability_proto = None
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      new_effect_bonus_ability_keys[key] = i
-      i = i + 1
-  new_effect_bonus_ability.append(row)
-  new_effect_bonus_ability_proto = row.copy()
-
-# unit_abilities locales
-tsv_file = openlocread("unit_abilities")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_ability_loc = []
-new_ability_loc_proto = None
-additional_ability_loc = []
-ability_descriptions_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-    for key in row:
-      ability_descriptions_keys[key] = i
-      i = i + 1
-  new_ability_loc.append(row)
-  new_ability_loc_proto = row.copy()
-
-# missile_weapon_junctions and effect_bonus_value_missile_weapon_junctions_tables - alternative projectile weapons unlocked in campaign
-#  - here we add a dummy ability which shows up when the custom weapon effect is enabled in campaign
-#  - example: "the very latest thing" skill of ikit claw
-#  - there's units with alternatives (or multiple) upgrades (grom's cooking gives different weapon types to goblins)
-# unit_special_abilities_tables - add a dummy infinite ability with no effects, will not show up in ui without this
-# unit_abilities_tables - add a passive ability for every weapon effect
-# unit_abilities__.loc -  add both name and tooltip entry for every added ability
-# effect_bonus_value_unit_ability_junctions_tables - copy every entry from effect_bonus_value_missile_weapon_junctions_tables, replace missile weapon id with new ability key
-# todo: use a different table for this (I assume unit_sets_tables + unit_set_to_unit_junctions_tables + unit_set_unit_ability_junctions_tables + effect_bonus_value_unit_set_unit_ability_junctions_tables)
-
-ability_proto_map = {"key": "ikit_claw_missile_tooltip", "requires_effect_enabling": "true", "icon_name": "ranged_weapon_stat", "type": "wh_type_augment", "uniqueness": "wh_main_anc_group_common", "is_unit_upgrade": "false", "is_hidden_in_ui": "false", "source_type": "unit", "is_hidden_in_ui_for_enemy":"false"}
-ability_details_proto_map = {"key": "ikit_claw_missile_tooltip", "num_uses": "-1", "active_time": "-1", "recharge_time": "-1", "initial_recharge": "-1", "wind_up_time": "0",
- "passive": "true", "effect_range": "0", "affect_self": "false", "num_effected_friendly_units": "0", "num_effected_enemy_units": "0", "update_targets_every_frame": "0", 
- "target_friends": "false", "target_enemies": "false", "target_ground": "false", "target_intercept_range": "0", "clear_current_order": "false", "unique_id": "17224802351", "mana_cost": "0",
- "min_range": "0", "miscast_chance": "0", "voiceover_state": "vo_battle_special_ability_generic_response", "additional_melee_cp": "0", "additional_missile_cp": "0",
- "target_ground_under_allies": "false", "target_ground_under_enemies": "false", "miscast_global_bonus": "false", "target_self": "true", "spawn_is_transformation": "false", "use_loop_stance": "false",
- "spawn_is_decoy": "false", "only_affect_owned_units": "false" }
-
-for effectid in effect_bonus_missile_junctions:
-  effectrows = effect_bonus_missile_junctions[effectid]
-  for effectrow in effectrows:
-    abilityid = effectid + "_" + effectrow[effect_bonus_missile_junctions_keys["missile_weapon_junction"]] + "_stats"
-    weaponjunction = missile_weapon_for_junction[effectrow[effect_bonus_missile_junctions_keys["missile_weapon_junction"]]]
-    weaponid = weaponjunction[missile_weapon_junctions_keys["missile_weapon"]]
-    abilitynamerow = new_ability_loc_proto.copy()
-    abilitynamerow[ability_descriptions_keys["key"]] = "unit_abilities_onscreen_name_" + abilityid
-    
-    abilitynamerow[ability_descriptions_keys["text"]] = weaponid.split("_", 2)[2]
-    additional_ability_loc.append(abilitynamerow)
-    abilitytextrow = new_ability_loc_proto.copy()
-    abilitytextrow[ability_descriptions_keys["key"]] = "unit_abilities_tooltip_text_" + abilityid
-    abilitytextrow[ability_descriptions_keys["text"]] = missileweapon_stats(weaponid, None, 0)
-    additional_ability_loc.append(abilitytextrow)
-    abilityrow = list(new_unit_ability_keys.keys())
-    for key in new_unit_ability_keys:
-      if key in ability_proto_map:
-        abilityrow[new_unit_ability_keys[key]] = ability_proto_map[key]
-      else:
-        abilityrow[new_unit_ability_keys[key]] = ""
-    abilityrow[new_unit_ability_keys["key"]] = abilityid
-    new_unit_ability.append(abilityrow)
-
-    abilitydetailsrow = list(ability_details_key.keys())
-    for key in ability_details_key:
-      if key in ability_details_proto_map:
-        abilitydetailsrow[ability_details_key[key]] = ability_details_proto_map[key]
-      else:
-        abilitydetailsrow[ability_details_key[key]] = ""
-    abilitydetailsrow[ability_details_key["key"]] = abilityid
-    ability_details_maxid = ability_details_maxid + 1
-    abilitydetailsrow[ability_details_key["unique_id"]] = str(ability_details_maxid)
-    new_ability_details.append(abilitydetailsrow)
-
-    unitid = weaponjunction[missile_weapon_junctions_keys["unit"]]
-    unitsetid = unitid
-    if unitsetid not in new_unit_set_for_key:
-      unitsetrow = list(new_unit_set_keys.keys())
-      unitsetrow[new_unit_set_keys["key"]] = unitsetid
-      unitsetrow[new_unit_set_keys["use_unit_exp_level_range"]] = "false"
-      unitsetrow[new_unit_set_keys["min_unit_exp_level_inclusive"]] = "-1"
-      unitsetrow[new_unit_set_keys["max_unit_exp_level_inclusive"]] = "-1"
-      unitsetrow[new_unit_set_keys["special_category"]] = ""
-      new_unit_set_for_key[unitsetid] = unitsetrow
-      new_unit_set.append(unitsetrow)
-
-      unitsettounitrow = list(new_unit_set_to_unit_keys.keys())
-      unitsettounitrow[new_unit_set_to_unit_keys["unit_set"]] = unitsetid
-      unitsettounitrow[new_unit_set_to_unit_keys["unit_record"]] = unitid
-      unitsettounitrow[new_unit_set_to_unit_keys["unit_caste"]] = ""
-      unitsettounitrow[new_unit_set_to_unit_keys["unit_category"]] = ""
-      unitsettounitrow[new_unit_set_to_unit_keys["unit_class"]] = ""
-      unitsettounitrow[new_unit_set_to_unit_keys["exclude"]] = "false"
-      new_unit_set_to_unit.append(unitsettounitrow)
-
-    unitsetabilityid = unitsetid + "_" + abilityid
-    unitsetabilityrow = list(new_unit_set_ability_keys.keys())
-    unitsetabilityrow[new_unit_set_ability_keys["key"]] = unitsetabilityid
-    unitsetabilityrow[new_unit_set_ability_keys["unit_set"]] = unitsetid
-    unitsetabilityrow[new_unit_set_ability_keys["unit_ability"]] = abilityid
-    new_unit_set_ability.append(unitsetabilityrow)
-
-    effectbonusabilityrow = new_effect_bonus_ability_proto.copy()
-    effectbonusabilityrow[new_effect_bonus_ability_keys["effect"]] = effectid
-    effectbonusabilityrow[new_effect_bonus_ability_keys["bonus_value_id"]] = effectrow[effect_bonus_missile_junctions_keys["bonus_value_id"]]
-    effectbonusabilityrow[new_effect_bonus_ability_keys["unit_set_ability"]] = unitsetabilityid
-    new_effect_bonus_ability.append(effectbonusabilityrow)
-
-# new unit_abilities_tables entries
-with open('unit_abilities_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_unit_ability:
-      tsv_writer.writerow(row)
-
-# new unit_special_abilities_tables entries
-with open('unit_special_abilities_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_ability_details:
-      tsv_writer.writerow(row)
-
-# new unit_sets_tables entries
-with open('unit_sets_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_unit_set:
-      tsv_writer.writerow(row)
-
-# new unit_set_to_unit_junctions_tables entries
-with open('unit_set_to_unit_junctions_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_unit_set_to_unit:
-      tsv_writer.writerow(row)
-
-# new unit_set_unit_ability_junctions_tables entries
-with open('unit_set_unit_ability_junctions_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_unit_set_ability:
-      tsv_writer.writerow(row)
-
-# new effect_bonus_value_unit_set_unit_ability_junctions_tables entries
-with open('effect_bonus_value_unit_set_unit_ability_junctions_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_effect_bonus_ability:
-      tsv_writer.writerow(row)
 
 # main unit table
 tsv_file = opendbread("main_units_tables")
@@ -1276,12 +893,10 @@ for row in read_tsv:
 
       if unit[units_keys['campaign_action_points']] != "2100":
         stats["campaign_range"] = unit[units_keys['campaign_action_points']]
-      if unit[units_keys['hiding_scalar']] != "1.0":
-        stats["hiding_scalar"] = unit[units_keys['hiding_scalar']]
       if unit[units_keys['shield']] != 'none':
         stats["missile_block"] = shields[unit[units_keys['shield']]] + "%"
-      stats["capture_power"] = unit[units_keys['capture_power']] # also apparently dead vehicles have capture power?
       # land_unit
+      # todo: capture power
       # todo: spot dist tree/ spot dist scrub/ 
       # hiding scalar -This affects the range that the unit can be spotted at, less than 1 makes it longer, greater than 1 shorter. So 1.5 would increase the spotters range by +50%
       # sync locomotion - undead sync anim   
@@ -1413,13 +1028,14 @@ for row in read_tsv:
       stats["mass"] = numstr(mass)
       targetsize = "nonlarge" if size == "small" else "large"
       stats["size"] = size + " ("+ targetsize + " target)"
+      stats["acceleration"] = numstr(accel)
 
       if len(meleeweaponsset) > 1:
         print("melee weapon conflict (land unit):" + unit[units_keys['key']])
       for meleeid in meleeweaponsset:
         unit_desc += meleeweapon_stats(meleeid)
 
-      unit_desc += indentstr(indent) + "run_speed " + statstr(speed) + " charge " + statstr(charge_speed) + " acceleration " + statstr(accel*10) + endl
+      unit_desc += indentstr(indent) + "run_speed " + statstr(speed) + " charge " + statstr(charge_speed) + endl
       if fly_speed != 0:
         unit_desc += indentstr(indent) + "fly_speed " + statstr(fly_speed) + " charge " + statstr(fly_charge_speed) + endl
 
@@ -1442,11 +1058,11 @@ for row in read_tsv:
       if int(unit[units_keys['secondary_ammo']]) != 0:
         stats["secondary_ammo"] = unit[units_keys['secondary_ammo']]
       
+      stats["unk59_int"] = unit[units_keys['unk59_int']]
+      stats["unk60_int"] = unit[units_keys['unk60_int']]
+
       for stat in stats:
           unit_desc += statindent(stat, stats[stat], indent)
-
-      if main_unit_entry[main_units_keys["unit"]] in missile_weapon_junctions:
-        unit_desc += statstr("ranged_weapon_replacement_available_in_campaign [[img:ui/battle ui/ability_icons/ranged_weapon_stat.png]][[/img]]") + endl
 
       if len(rangedeaponsset) > 1:
         print("missile weapon conflict (land unit):" + unit[units_keys['key']])
@@ -1507,19 +1123,19 @@ for row in read_tsv:
 tsv_file.close()
 
 # new bullet point enum
-with open('ui_unit_bullet_point_enums_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('ui_unit_bullet_point_enums_tables_data.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     for row in new_bullet_point_enums:
       tsv_writer.writerow(row)
 
 # new bullet point override
-with open('ui_unit_bullet_point_unit_overrides_tables_data__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('ui_unit_bullet_point_unit_overrides_tables_data.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     for row in new_bullet_point_override:
       tsv_writer.writerow(row)
 
 # new bullet point descriptions
-with open('ui_unit_bullet_point_enums__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('ui_unit_bullet_point_enums.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     for row in new_bullet_points_loc:
       tsv_writer.writerow(row)
@@ -1547,6 +1163,59 @@ for row in read_tsv:
       ability_phases[key] = []
     ability_phases[key].append(row[ability_phases_keys["phase"]])
 
+tsv_file.close()
+
+# unit ability doesn't have anything intesting
+
+# unit_special_ability uses unit_ability as key according to dave
+# num_uses - charges?
+# active time - If this is a projectile then set -1 for active time
+# activated projectiles - projectiles table
+# target_friends/enemies/ground
+# assume_specific_behaviour - special_abilities_behaviour_types (cantabrian circle, etc.)
+# bombardment - projectile_bombardments table
+# spawned unit - land_units_table
+# vortex: battle_vortexs vortex_key
+# wind_up_stance, wind_down_stance -> special_ability_stance_enums
+# use_loop_stance - Entities will play a loop locomotion stance
+# mana_cost
+# min_range - "too close" error?
+# initial_recharge, recharge_time, wind_up_time
+# passive
+# effect_range
+# affect_self
+# num_effected_friendly_units
+# num_effected_enemy_unuits
+# update_targets_every_frame
+# clear_current_order
+# targetting_aoe -> area_of_effect_displays - This is the area of effect to display when targetting
+# passive_aoe -> area_of_effect_displays - This is the area of effect to display when ability has been ordered but not yet cast (like if unit has to move their to cast)
+# active_aoe -> area_of_effect_displays - This is the area of effect to display when ability is currently active (has been cast)
+# miscast chance - The unary chance of a miscast occuring
+# miscast_explosion -> projectiles_explosions
+# target_ground_under_allies
+# target_ground_under_enemies
+# target_self
+# target_intercept_range - ?
+# only_affect_owned_units - If it's affecting friendly units, it only affect those in the same army as the owner
+# spawn_is_decoy - If spawning a unit the new one will be understood as a decoy of the owner one, the UI will show data for the owning one
+# spawn_is_transformation - If spawning a unit will mean the owner unit will be replaced by the spawned one
+tsv_file = opendbread("unit_special_abilities_tables")
+
+read_tsv = csv.reader(tsv_file, delimiter="\t")
+ability_details = {}
+
+rowid = 0
+ability_details_key = {}
+for row in read_tsv:
+  rowid = rowid + 1
+  i = 0
+  if rowid == 2:
+      for key in row:
+        ability_details_key[key] = i
+        i = i + 1
+  if rowid > 2:
+      ability_details[row[ability_details_key["key"]]] = row
 tsv_file.close()
 
 # battle vortexs - done
@@ -1614,122 +1283,143 @@ for row in read_tsv:
 tsv_file.close()
 
 # ability descriptions
-rowid = 0
-for row in new_ability_loc:
-  rowid = rowid + 1
-  if rowid > 2 and "unit_abilities_tooltip_text_" in row[ability_descriptions_keys["key"]]:
-      newrow = row
-      descid =  newrow[ability_descriptions_keys["key"]].replace("unit_abilities_tooltip_text_", "", 1)
-      result = "\\\\n\\\\n"
-
-      if descid in ability_details:
-        ability = ability_details[descid]
-
-        if ability[ability_details_key["passive"]] == "false":
-          result += statindent("cast_time", ability[ability_details_key["wind_up_time"]], 0)
-          result += statindent("active_time", ability[ability_details_key["active_time"]], 0)
-          initial_recharge = ""
-          if (float(ability[ability_details_key["initial_recharge"]]) > 0): 
-            initial_recharge = ", initial " + ability[ability_details_key["initial_recharge"]]
-          result += statindent("recharge_time", ability[ability_details_key["recharge_time"]] + initial_recharge, 0)
-          if float(ability[ability_details_key["min_range"]]) > 0:
-            result += statindent("min_range", ability[ability_details_key["min_range"]] + initial_recharge, 0)
-
-        if int(ability[ability_details_key["num_effected_friendly_units"]]) > 0:
-          result += statindent("affected_friendly_units", ability[ability_details_key["num_effected_friendly_units"]], 0)
-        if int(ability[ability_details_key["num_effected_enemy_units"]]) > 0:
-          result += statindent("affected_enemy_units", ability[ability_details_key["num_effected_enemy_units"]], 0)
-        if ability[ability_details_key["only_affect_owned_units"]] == "true":
-          result += statindent("only_affect_owned_units", ability[ability_details_key["only_affect_owned_units"]], 0)
-        if ability[ability_details_key["update_targets_every_frame"]] == "true":
-          result += statindent("update_targets_every_frame", ability[ability_details_key["update_targets_every_frame"]], 0)
-
-        if ability[ability_details_key["assume_specific_behaviour"]]:
-          result += statindent("behaviour", ability[ability_details_key["assume_specific_behaviour"]], 0)
-        
-        if ability[ability_details_key["bombardment"]] != "":
-          bombardment = bombardments[ability[ability_details_key["bombardment"]]]
-          result += "Bombardment:\\\\n"
-          result += statindent("num_bombs", bombardment[bombardments_key["num_projectiles"]],2)
-          result += statindent("radius_spread", bombardment[bombardments_key["radius_spread"]],2)
-          result += statindent("launch_source", bombardment[bombardments_key["launch_source"]],2)
-          result += statindent("launch_height", bombardment[bombardments_key["launch_height"]],2)
-          result += statindent("start_time", bombardment[bombardments_key["start_time"]],2)
-          result += statindent("arrival_window", bombardment[bombardments_key["arrival_window"]],2)
-          bomb_projectile = projectiles[bombardment[bombardments_key["projectile_type"]]]
-          result += missile_stats(bomb_projectile, None, "", 2)
-          result += "\\\\n"
-        if ability[ability_details_key["activated_projectile"]] != "":
-          result += "Projectile:"
-          projectile = projectiles[ability[ability_details_key["activated_projectile"]]]
-          result += missile_stats(projectile, None, "", 2)
-          result += "\\\\n"
-        if ability[ability_details_key["vortex"]] != "":
-          result += "Vortex: \\\\n"
-          indent = 2
-          vortex = vortexs[ability[ability_details_key['vortex']]]
-          if vortex[vortexs_key['num_vortexes']] != "1":
-            result += indentstr(indent) + " vortex count: " + statstr(vortex[vortexs_key['num_vortexes']]) + " vortexes " + statstr(vortex[vortexs_key['delay_between_vortexes']]) + "s delay inbetween" + endl
-          radius = ""
-          if vortex[vortexs_key['start_radius']] == vortex[vortexs_key['goal_radius']]:
-            radius = statstr(vortex[vortexs_key['start_radius']])
-          else:
-            radius = "start " + statstr(vortex[vortexs_key['start_radius']]) + " goal " +  statstr(vortex[vortexs_key['goal_radius']]) + " expansion speed " +  statstr(vortex[vortexs_key['expansion_speed']])
-          result += indentstr(indent) + "radius: " + radius + endl
-          result += indentstr(indent) + damage_stat(vortex[vortexs_key['damage']], vortex[vortexs_key['damage_ap']], vortex[vortexs_key['ignition_amount']], vortex[vortexs_key['is_magical']]) + endl
-          result += statindent("detonation_force", vortex[vortexs_key['detonation_force']], indent)
-          result += statindent("initial_delay", vortex[vortexs_key['delay']], indent)
-          result += statindent("duration", vortex[vortexs_key['duration']], indent)
-          if vortex[vortexs_key['building_collision']] == "2.expire":
-            result += indentstr(indent) + statstr("building colision expires vortex") + endl
-          result += statindent("launch_source", vortex[vortexs_key['launch_source']], indent)
-          if vortex[vortexs_key['launch_source_offset']] != "0.0":
-            result += statindent("launch_source_offset", vortex[vortexs_key['launch_source_offset']], indent)
-          if float(vortex[vortexs_key['movement_speed']]) == 0:
-            path = "stationary"
-          elif vortex[vortexs_key['change_max_angle']] == "0":
-            path = "straight line, speed " + statstr(vortex[vortexs_key['movement_speed']])
-          else:
-            path = "angle changes by " + statstr("0-"+numstr(vortex[vortexs_key['change_max_angle']])) + " every " + statstr(vortex[vortexs_key['move_change_freq']]) + ", speed " + statstr(vortex[vortexs_key['movement_speed']])
-          result += indentstr(indent) +  "path: " + path + endl
-          if vortex[vortexs_key['affects_allies']] == "false":
-            result += posstr("doesn't_affect_allies", indent) + endl
-          if vortex[vortexs_key["contact_effect"]] != "":
-            result += ability_phase_details_stats(phaseid, indent, "contact effect")
-        if ability[ability_details_key["spawned_unit"]] != "":
-          result += "Spawn: "
-          if ability[ability_details_key["spawn_is_decoy"]] == "true":
-            result += "(decoy) "
-          if ability[ability_details_key["spawn_is_transformation"]] == "true":
-            result += "(transform) "
-          result += land_unit_to_spawn_info[ability[ability_details_key['spawned_unit']]]
-          result += endl
-        if ability[ability_details_key["miscast_explosion"]] != "":
-          result += "Miscast explosion (chance:" + statstr(float(ability[ability_details_key["miscast_chance"]]) * 100) + "%):"
-          explosionrow = projectiles_explosions[ability[ability_details_key['miscast_explosion']]]
-          result += explosion_stats(explosionrow, 2)
-          result += endl
-      if descid in ability_phases:
-          result += "Phases:\\\\n"
-          phases = ability_phases[descid]
-          i = 0
-          for phaseid in phases:
-            i = i + 1
-            result += ability_phase_details_stats(phaseid, 2, numstr(i) + ".")
-
-
-      newrow[ability_descriptions_keys["text"]] = newrow[ability_descriptions_keys["text"]] + result 
-      new_ability_loc[rowid - 1] = newrow
-
-# new unit_abilities loc entries
-with open('unit_abilities__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+tsv_file = openlocread("unit_abilities")
+read_tsv = csv.reader(tsv_file, delimiter="\t")
+ability_descriptions_keys = {}
+with open('unit_abilities.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in new_ability_loc:
-      tsv_writer.writerow(row)
-    for row in additional_ability_loc:
-      tsv_writer.writerow(row)
+    rowid = 0
+    for row in read_tsv:
+        rowid = rowid + 1
+        i = 0
+        if rowid == 2:
+            for key in row:
+                ability_descriptions_keys[key] = i
+                i = i + 1
+        if rowid > 2:
+            newrow = row
+            descid =  newrow[ability_descriptions_keys["key"]].replace("unit_abilities_tooltip_text_", "", 1)
+            result = "\\\\n\\\\n"
+
+            if descid in ability_details:
+              ability = ability_details[descid]
+
+              if float(ability[ability_details_key["unkfloat46"]]) > 0:
+                  result += statindent("unkfloat46", ability[ability_details_key["unkfloat46"]], 0)
+
+              if float(ability[ability_details_key["unkfloat48"]]) > 0:
+                  result += statindent("unkfloat48", ability[ability_details_key["unkfloat48"]], 0)
+
+              if ability[ability_details_key["unkbool45"]] == "true":
+                  result += statindent("unkbool45", ability[ability_details_key["unkbool45"]], 0)
+
+              if ability[ability_details_key["unkstr47"]] != "RAGE_REGULAR":
+                  result += statindent("", ability[ability_details_key["unkstr47"]], 0)
+
+              if ability[ability_details_key["passive"]] == "false":
+                result += statindent("cast_time", ability[ability_details_key["wind_up_time"]], 0)
+                result += statindent("active_time", ability[ability_details_key["active_time"]], 0)
+                initial_recharge = ""
+                if (float(ability[ability_details_key["initial_recharge"]]) > 0): 
+                  initial_recharge = ", initial " + ability[ability_details_key["initial_recharge"]]
+                result += statindent("recharge_time", ability[ability_details_key["recharge_time"]] + initial_recharge, 0)
+                if float(ability[ability_details_key["min_range"]]) > 0:
+                  result += statindent("min_range", ability[ability_details_key["min_range"]] + initial_recharge, 0)
+
+              if int(ability[ability_details_key["num_effected_friendly_units"]]) > 0:
+                result += statindent("affected_friendly_units", ability[ability_details_key["num_effected_friendly_units"]], 0)
+              if int(ability[ability_details_key["num_effected_enemy_units"]]) > 0:
+                result += statindent("affected_enemy_units", ability[ability_details_key["num_effected_enemy_units"]], 0)
+#              if ability[ability_details_key["only_affect_owned_units"]] == "true":
+#                result += statindent("only_affect_owned_units", ability[ability_details_key["only_affect_owned_units"]], 0)
+              if ability[ability_details_key["update_targets_every_frame"]] == "true":
+                result += statindent("update_targets_every_frame", ability[ability_details_key["update_targets_every_frame"]], 0)
+
+              if ability[ability_details_key["assume_specific_behaviour"]]:
+                result += statindent("behaviour", ability[ability_details_key["assume_specific_behaviour"]], 0)
+              
+              if ability[ability_details_key["bombardment"]] != "":
+                bombardment = bombardments[ability[ability_details_key["bombardment"]]]
+                result += "Bombardment:\\\\n"
+                result += statindent("num_bombs", bombardment[bombardments_key["num_projectiles"]],2)
+                result += statindent("radius_spread", bombardment[bombardments_key["radius_spread"]],2)
+                result += statindent("launch_source", bombardment[bombardments_key["launch_source"]],2)
+                result += statindent("launch_height", bombardment[bombardments_key["launch_height"]],2)
+                result += statindent("start_time", bombardment[bombardments_key["start_time"]],2)
+                result += statindent("arrival_window", bombardment[bombardments_key["arrival_window"]],2)
+                bomb_projectile = projectiles[bombardment[bombardments_key["projectile_type"]]]
+                result += missile_stats(bomb_projectile, None, "", 2)
+                result += "\\\\n"
+              if ability[ability_details_key["activated_projectile"]] != "":
+                result += "Projectile:"
+                projectile = projectiles[ability[ability_details_key["activated_projectile"]]]
+                result += missile_stats(projectile, None, "", 2)
+                result += "\\\\n"
+              if ability[ability_details_key["vortex"]] != "":
+                result += "Vortex: \\\\n"
+                indent = 2
+                vortex = vortexs[ability[ability_details_key['vortex']]]
+                if vortex[vortexs_key['num_vortexes']] != "1":
+                  result += indentstr(indent) + " vortex count: " + statstr(vortex[vortexs_key['num_vortexes']]) + " vortexes " + statstr(vortex[vortexs_key['delay_between_vortexes']]) + "s delay inbetween" + endl
+                radius = ""
+                if vortex[vortexs_key['start_radius']] == vortex[vortexs_key['goal_radius']]:
+                  radius = statstr(vortex[vortexs_key['start_radius']])
+                else:
+                  radius = "start " + statstr(vortex[vortexs_key['start_radius']]) + " goal " +  statstr(vortex[vortexs_key['goal_radius']]) + " expansion speed " +  statstr(vortex[vortexs_key['expansion_speed']])
+                result += indentstr(indent) + "radius: " + radius + endl
+                result += indentstr(indent) + damage_stat(vortex[vortexs_key['damage']], vortex[vortexs_key['damage_ap']], vortex[vortexs_key['ignition_amount']], vortex[vortexs_key['is_magical']]) + endl
+                result += statindent("detonation_force", vortex[vortexs_key['detonation_force']], indent)
+                result += statindent("initial_delay", vortex[vortexs_key['delay']], indent)
+                result += statindent("duration", vortex[vortexs_key['duration']], indent)
+                if vortex[vortexs_key['building_collision']] == "2.expire":
+                  result += indentstr(indent) + statstr("building colision expires vortex") + endl
+                result += statindent("launch_source", vortex[vortexs_key['launch_source']], indent)
+                if vortex[vortexs_key['launch_source_offset']] != "0.0":
+                  result += statindent("launch_source_offset", vortex[vortexs_key['launch_source_offset']], indent)
+                if vortex[vortexs_key['movement_speed']] == "0":
+                  path = statstr("doesn't move")
+                if float(vortex[vortexs_key['movement_speed']]) == 0:
+                   path = "stationary"
+                elif vortex[vortexs_key['change_max_angle']] == "0":
+                  path = "straight line, speed " + statstr(vortex[vortexs_key['movement_speed']])
+                else:
+                  path = "angle changes by " + statstr("0-"+numstr(vortex[vortexs_key['change_max_angle']])) + " every " + statstr(vortex[vortexs_key['move_change_freq']]) + ", speed " + statstr(vortex[vortexs_key['movement_speed']])
+                result += indentstr(indent) +  "path: " + path + endl
+                if vortex[vortexs_key['affects_allies']] == "false":
+                  result += posstr("doesn't_affect_allies", indent) + endl
+                if vortex[vortexs_key["contact_effect"]] != "":
+                  result += ability_phase_details_stats(phaseid, indent, "contact effect")
+              if ability[ability_details_key["spawned_unit"]] != "":
+                result += "Spawn: "
+                if ability[ability_details_key["spawn_is_decoy"]] == "true":
+                  result += "(decoy) "
+                if ability[ability_details_key["spawn_is_transformation"]] == "true":
+                  result += "(transform) "
+                result += land_unit_to_spawn_info[ability[ability_details_key['spawned_unit']]]
+                result += endl
+              if ability[ability_details_key["miscast_explosion"]] != "":
+                result += "Miscast explosion (chance:" + statstr(float(ability[ability_details_key["miscast_chance"]]) * 100) + "%):"
+                explosionrow = projectiles_explosions[ability[ability_details_key['miscast_explosion']]]
+                result += explosion_stats(explosionrow, 2)
+                result += endl
+            if descid in ability_phases:
+                result += "Phases:\\\\n"
+                phases = ability_phases[descid]
+                i = 0
+                for phaseid in phases:
+                  i = i + 1
+                  result += ability_phase_details_stats(phaseid, 2, numstr(i) + ".")
+
+
+            newrow[ability_descriptions_keys["text"]] = newrow[ability_descriptions_keys["text"]] + result 
+            tsv_writer.writerow(newrow)
+        else:
+            tsv_writer.writerow(row)
+tsv_file.close()
+
 
 tsv_file = opendbread("_kv_rules_tables")
+
 read_tsv = csv.reader(tsv_file, delimiter="\t")
 kv_rules = {}
 rowid = 0
@@ -1849,7 +1539,7 @@ for row in read_tsv:
       if growth_rate == 0:
         # verified in game that the stats are using math rounding to integer for exp bonuses
         result[bonus_stat] = statstr(round(growth_scalar * rank))
-      else: #"base"+"^" + statstr(growth_rate) + "*" + statstr(growth_scalar * rank)
+      else: #"base"+"^" + statstr(growth_rate) + "*" + statstr(growth_scalar * rank) + 
         result[bonus_stat] = statstr(round((30.0 ** growth_rate) * growth_scalar * rank)) + " " + statstr(round((60.0 ** growth_rate) * growth_scalar * rank))
     rank_bonuses[key] = result
 tsv_file.close()
@@ -1859,7 +1549,7 @@ tsv_file.close()
 tsv_file = openlocread("unit_stat_localisations")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
 unit_stat_localisations_keys = {}
-with open('unit_stat_localisations__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('unit_stat_localisations.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     rowid = 0
     for row in read_tsv:
@@ -1899,7 +1589,7 @@ with open('unit_stat_localisations__.tsv', 'w', newline='', encoding="utf-8") as
               newtext += "Friendly fire uses bigger hitboxes than enemy fire: height *= " + statstr(kv_rules["projectile_friendly_fire_man_height_coefficient"]) + " radius *= " + statstr(kv_rules["projectile_friendly_fire_man_radius_coefficient"]) + "||" 
               newtext += "Units with " + statstr("dual") + " trajectory will switch their aim to high if "+ statstr(float(kv_rules["unit_firing_line_of_sight_considered_obstructed_ratio"]) * 100) + "% of LOS is obstructed ||"
               newtext += "Projectiles with high velocity and low aim are much better at hitting moving enemies."
-              # todo: things like missile penetration, lethality seem to contradict other stat descriptions but don't seem obsolete as they weren't there in shogun2
+              # todo: things like missile penetration, lethality seem to contradict other stat descriptions but don't seem obsolete
               # need to do more testing before adding them in
             if key == "unit_stat_localisations_tooltip_text_scalar_speed":
               newtext += "|| || Fatigue effects: ||"
@@ -1965,7 +1655,7 @@ tsv_file.close()
 tsv_file = openlocread("unit_attributes")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
 unit_attributes_loc_keys = {}
-with open('unit_attributes__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('unit_attributes.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     rowid = 0
     for row in read_tsv:
@@ -2004,7 +1694,7 @@ tsv_file.close()
 tsv_file = openlocread("random_localisation_strings")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
 random_localisation_strings_keys = {}
-with open('random_localisation_strings__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('random_localisation_strings.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     rowid = 0
     for row in read_tsv:
@@ -2038,7 +1728,7 @@ tsv_file.close()
 tsv_file = openlocread("uied_component_texts")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
 uied_component_texts_keys = {}
-with open('uied_component_texts__.tsv', 'w', newline='', encoding="utf-8") as out_file:
+with open('uied_component_texts.tsv', 'w', newline='', encoding="utf-8") as out_file:
     tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     rowid = 0
     for row in read_tsv:
@@ -2056,7 +1746,7 @@ with open('uied_component_texts__.tsv', 'w', newline='', encoding="utf-8") as ou
 
             if key == "uied_component_texts_localised_string_experience_tx_Tooltip_5c0016":
               newtext += "|| XP rank bonuses (melee attack and defence list values for base 30 and 60 as their bonus depends on the base value of the stat): ||"
-              for rank in range(1, 10):
+              for rank in range(0, 10):
                 newtext += rank_icon(rank)
                 stats = rank_bonuses[str(rank)]
                 for stat in stats:

@@ -98,6 +98,25 @@ for row in read_tsv:
     ability_phase_stats[key].append(row)
 tsv_file.close()
 
+# ability phase details
+tsv_file = open("special_ability_phases_tables_special_ability_phases.tsv")
+
+read_tsv = csv.reader(tsv_file, delimiter="\t")
+ability_phase_details = {}
+
+rowid = 0
+ability_phase_details_key = {}
+for row in read_tsv:
+  rowid = rowid + 1
+  i = 0
+  if rowid == 2:
+      for key in row:
+        ability_phase_details_key[key] = i
+        i = i + 1
+  if rowid > 2:
+      ability_phase_details[row[ability_phase_details_key["id"]]] = row
+tsv_file.close()
+
 # projectiles_explosions_tables_projectiles_explosions
 tsv_file = open("projectiles_explosions_tables_projectiles_explosions.tsv")
 
@@ -194,6 +213,42 @@ def negdifftostr(stat):
 def statstr(stat):
   return "[[col:yellow]]" + str(stat) +"[[/col]]"
 
+def statexplosion(explosionrow):
+  projectiletext = ""
+  projectiletext += " expl_dmg " + statstr(explosionrow[projectiles_explosions_keys['detonation_damage']])
+  projectiletext += " _radius " + statstr(explosionrow[projectiles_explosions_keys['detonation_radius']])
+  if explosionrow[projectiles_explosions_keys['projectile_amount']] != "0":
+    projectilerow = projectiles[explosionrow[projectiles_explosions_keys['projectile_name']]]
+    projectiletext += " _debris x" + explosionrow[projectiles_explosions_keys['projectile_amount']] 
+    projectiletext += " (dmg " + statstr(projectilerow[projectiles_keys['damage']])
+    projectiletext += " ap " + statstr(projectilerow[projectiles_keys['ap_damage']])
+    projectiletext += ")"
+  return projectiletext
+
+def statabilityphase(phaseid, separator, title):
+  result = ""
+  details = ability_phase_details[phaseid]
+  unbreakable = "unbreakable " if details[ability_phase_details_key["unbreakable"]] == 'true' else ""
+  cantmove = "cant_move " if details[ability_phase_details_key["cant_move"]] == 'true' else ""
+  freeze_fatigue = "freeze_fatigue " if details[ability_phase_details_key["freeze_fatigue"]] == 'true' else ""
+  kill_own_unit = "kill_own_unit " if details[ability_phase_details_key["kill_own_unit"]] == 'true' else ""
+  fatigue_change_ratio = "fatigue_change_ratio: " + details[ability_phase_details_key["fatigue_change_ratio"]] + " " if details[ability_phase_details_key["fatigue_change_ratio"]] != '0.0' else ""
+  duration = "(" + details[ability_phase_details_key["duration"]] +"s) " if details[ability_phase_details_key["duration"]] != "-1.0" else ""
+  col = "green" if details[ability_phase_details_key["effect_type"]] == 'positive' else "yellow"
+  col = "red" if details[ability_phase_details_key["effect_type"]] == 'negative' else col
+  aura_range_mod = "inspiration_range_mod: " + details[ability_phase_details_key["inspiration_aura_range_mod"]] +" " if details[ability_phase_details_key["inspiration_aura_range_mod"]] != "0.0" else ""
+  ability_recharge_change = "ability_recharge_rate: " + details[ability_phase_details_key["ability_recharge_change"]] +" " if details[ability_phase_details_key["ability_recharge_change"]] != "0.0" else ""
+  result += title + "[[col:" + col + "]] " + duration + kill_own_unit + unbreakable + cantmove + freeze_fatigue + fatigue_change_ratio + aura_range_mod  + ability_recharge_change + "[[/col]]" + separator
+  if phaseid in ability_phase_stats:
+    effects = ability_phase_stats[phaseid]
+    
+    for effect in effects:
+      how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
+      if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
+        how = ""
+      result += effect[ability_phase_stats_keys["stat"]].replace("stat_", "", 1) + " " + how + effect[ability_phase_stats_keys["value"]] + separator
+  return result
+
 # unit descriptions
 tsv_file = open("unit_description_short_texts.loc.tsv")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
@@ -227,6 +282,9 @@ for row in read_tsv:
 
 # units
 # todos: show unit price and mass and charge speed?
+# todos: show stats and count of animals
+# todos: hiding and spotting?
+# todo: add a dummy ability using land_unit_to_unit_abilities_junction and unit_abilities (and maybe special_abilit* tables)
 tsv_file = open("land_units_tables_land_units.tsv")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
 
@@ -262,7 +320,7 @@ for row in read_tsv:
       if unit[units_keys['shield']] != 'none':
         stats["missile_block"] = shields[unit[units_keys['shield']]] + "%"
       
-      if unit[units_keys['primary_melee_weapon']] != '':
+      if unit[units_keys['primary_melee_weapon']] != '' and unit[units_keys['category']] != 'artillery':
           meleeid = unit[units_keys['primary_melee_weapon']]
           meleerow = melee[meleeid]
           if meleerow[melee_keys['armour_piercing']] == 'true':
@@ -270,6 +328,8 @@ for row in read_tsv:
           if meleerow[melee_keys['shield_piercing']] == 'true':
             stats["melee_wpn_full_enemy_shield_piercing"] = 'true'
           stats["melee_ap_dmg"] = meleerow[melee_keys['ap_damage']]
+          if meleerow[melee_keys['weapon_length']] != "1.0":
+            stats["melee_range"] = meleerow[melee_keys['weapon_length']]
       if unit[units_keys['armour']] != '':
           armourid = unit[units_keys['armour']]
           armourrow = armour[armourid]
@@ -301,20 +361,27 @@ for row in read_tsv:
           desc[descriptions_keys["text"]] += " dismounted stats: " + dismounteddiff+ ";"
 
       if missileweapon != '':
-          projectiletext = " default shot:"
+          # todo: show calibration distance too
+          projectiletext = " shot:"
           projectileid = weapon_projectile[missileweapon]
           projectilerow = projectiles[projectileid]
           projectiletext += " ap_dmg " + statstr(projectilerow[projectiles_keys['ap_damage']])
+          projectiletext += " range " + statstr(projectilerow[projectiles_keys['effective_range']])
+
+          # spread doesn't mater
+
           projectiletext += " marksmanship " + statstr(projectilerow[projectiles_keys['marksmanship_bonus']])
           if projectilerow[projectiles_keys['bonus_v_infantry']] != '0':
-            projectiletext += " bonus_v_inf " + statstr(projectilerow[projectiles_keys['bonus_v_infantry']])
+            projectiletext += " +_v_inf " + statstr(projectilerow[projectiles_keys['bonus_v_infantry']])
           if projectilerow[projectiles_keys['bonus_v_cavalry']] != '0':
-            projectiletext += " bonus_v_large " + statstr(projectilerow[projectiles_keys['bonus_v_cavalry']])
+            projectiletext += " +v_large " + statstr(projectilerow[projectiles_keys['bonus_v_cavalry']])
+
+          if projectilerow[projectiles_keys['shockwave_radius']] != '-1.0':
+            projectiletext += " shock radius " + statstr(projectilerow[projectiles_keys['shockwave_radius']])
           if projectilerow[projectiles_keys['explosion_type']] != '':
             explosionrow = projectiles_explosions[projectilerow[projectiles_keys['explosion_type']]]
-            projectiletext += " explosion_dmg " + statstr(explosionrow[projectiles_explosions_keys['detonation_damage']])
-            projectiletext += " explosion_radius " + statstr(explosionrow[projectiles_explosions_keys['detonation_radius']])
-          
+            projectiletext += statexplosion(explosionrow)
+
           debuff = projectilerow[projectiles_keys['overhead_stat_effect']]
           debufftype = "overhead"
           if debuff == '':
@@ -322,12 +389,8 @@ for row in read_tsv:
             debufftype = "contact"
           if debuff != '':
             effects = ability_phase_stats[debuff]
-            projectiletext += " " + debufftype + " debuff ("
-            for effect in effects:
-              how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
-              if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
-                how = ""
-              projectiletext += effect[ability_phase_stats_keys["stat"]] + " " + statstr(how + effect[ability_phase_stats_keys["value"]]) + " "
+            projectiletext += " " + debufftype + " mod ("
+            projectiletext += statabilityphase(debuff, " ", "")
             projectiletext += ")"
           projectiletext += "; "
           if missileweapon in weapon_alt_projectile:
@@ -349,10 +412,10 @@ for row in read_tsv:
                 projectiletext += " marksmanship " + difftostr(s)
               s = int(altprojectilerow[projectiles_keys['bonus_v_infantry']]) - int(projectilerow[projectiles_keys['bonus_v_infantry']])
               if s != 0:
-                projectiletext += " bonus_v_inf " + difftostr(s)
+                projectiletext += " +_v_inf " + difftostr(s)
               s = int(altprojectilerow[projectiles_keys['bonus_v_cavalry']]) - int(projectilerow[projectiles_keys['bonus_v_cavalry']])
               if s != 0:
-                projectiletext += " bonus_v_cav " + difftostr(s)
+                projectiletext += " +_v_large " + difftostr(s)
               s = int(altprojectilerow[projectiles_keys['effective_range']]) - int(projectilerow[projectiles_keys['effective_range']])
               if s != 0:
                 projectiletext += " range " + difftostr(s)
@@ -361,11 +424,10 @@ for row in read_tsv:
                 projectiletext += " base_reload_time " + negdifftostr(s)
               s = float(altprojectilerow[projectiles_keys['calibration_area']]) - float(projectilerow[projectiles_keys['calibration_area']])
               if s != 0:
-                projectiletext += " calibration_area " + negdifftostr(s)
+                projectiletext += " calib_area " + negdifftostr(s)
               if altprojectilerow[projectiles_keys['explosion_type']] != '':
                 explosionrow = projectiles_explosions[altprojectilerow[projectiles_keys['explosion_type']]]
-                projectiletext += " explosion_dmg " + statstr(explosionrow[projectiles_explosions_keys['detonation_damage']])
-                projectiletext += " explosion_radius " + statstr(explosionrow[projectiles_explosions_keys['detonation_radius']])
+                projectiletext += statexplosion(explosionrow)
 
               debuff = altprojectilerow[projectiles_keys['overhead_stat_effect']]
               debufftype = "overhead"
@@ -373,13 +435,8 @@ for row in read_tsv:
                 debuff = altprojectilerow[projectiles_keys['contact_stat_effect']]
                 debufftype = "contact"
               if debuff != '':
-                effects = ability_phase_stats[debuff]
-                projectiletext += " " + debufftype + " debuff ("
-                for effect in effects:
-                  how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
-                  if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
-                    how = ""
-                  projectiletext += effect[ability_phase_stats_keys["stat"]] + " " + statstr(how + effect[ability_phase_stats_keys["value"]]) + " "
+                projectiletext += " " + debufftype + " mod ("
+                projectiletext += statabilityphase(debuff, " ", "")
                 projectiletext += ")"
               projectiletext += "; "
           desc[descriptions_keys["text"]] += projectiletext
@@ -427,25 +484,6 @@ for row in read_tsv:
 
 tsv_file.close()
 
-# ability phase details
-tsv_file = open("special_ability_phases_tables_special_ability_phases.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-ability_phase_details = {}
-
-rowid = 0
-ability_phase_details_key = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        ability_phase_details_key[key] = i
-        i = i + 1
-  if rowid > 2:
-      ability_phase_details[row[ability_phase_details_key["id"]]] = row
-tsv_file.close()
-
 # ability descriptions
 tsv_file = open("unit_abilities.loc.tsv")
 read_tsv = csv.reader(tsv_file, delimiter="\t")
@@ -469,27 +507,8 @@ with open('new_unit_abilities.loc.tsv', 'w', newline='') as out_file:
                 i = 0
                 for phaseid in phases:
                   i = i + 1
-                  details = ability_phase_details[phaseid]
-                  unbreakable = "unbreakable " if details[ability_phase_details_key["unbreakable"]] == 'true' else ""
-                  cantmove = "cant_move " if details[ability_phase_details_key["cant_move"]] == 'true' else ""
-                  freeze_fatigue = "freeze_fatigue " if details[ability_phase_details_key["freeze_fatigue"]] == 'true' else ""
-                  kill_own_unit = "kill_own_unit " if details[ability_phase_details_key["kill_own_unit"]] == 'true' else ""
-                  fatigue_change_ratio = "fatigue_change_ratio: " + details[ability_phase_details_key["fatigue_change_ratio"]] + " " if details[ability_phase_details_key["fatigue_change_ratio"]] != '0.0' else ""
-                  duration = "(" + details[ability_phase_details_key["duration"]] +"s) " if details[ability_phase_details_key["duration"]] != "-1.0" else ""
-                  col = "green" if details[ability_phase_details_key["effect_type"]] == 'positive' else "red"
-                  aura_range_mod = "inspiration_range_mod: " + details[ability_phase_details_key["inspiration_aura_range_mod"]] +" " if details[ability_phase_details_key["inspiration_aura_range_mod"]] != "0.0" else ""
-                  ability_recharge_change = "ability_recharge_rate: " + details[ability_phase_details_key["ability_recharge_change"]] +" " if details[ability_phase_details_key["ability_recharge_change"]] != "0.0" else ""
-                  result = result + str(i) +". [[col:" + col + "]] " + kill_own_unit + unbreakable + cantmove + freeze_fatigue + fatigue_change_ratio + aura_range_mod  + ability_recharge_change + duration + "[[/col]]\\\\n"
-                  if phaseid in ability_phase_stats:
-                    effects = ability_phase_stats[phaseid]
-                    
-                    for effect in effects:
-                      how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
-                      if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
-                        how = ""
-                      result = result + effect[ability_phase_stats_keys["stat"]] + " " + how + effect[ability_phase_stats_keys["value"]] + "\\\\n"
-
-                newrow[ability_descriptions_keys["text"]] = newrow[ability_descriptions_keys["text"]] + result 
+                  result += statabilityphase(phaseid, "\\\\n", str(i) +".")
+                newrow[ability_descriptions_keys["text"]] += result 
             tsv_writer.writerow(newrow)
         else:
             tsv_writer.writerow(row)
