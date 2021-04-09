@@ -169,8 +169,8 @@ def read_to_dict_of_lists(db_reader, key="key"):
   with db_reader:
     for row in db_reader.rows_iter:
       if key not in result:
-        result[key] = []
-      result[key].append(row)
+        result[row[key]] = []
+      result[row[key]].append(row)
   return result
 
 def read_column_to_dict(db_reader, key, column):
@@ -185,8 +185,8 @@ def read_column_to_dict_of_lists(db_reader, key, column):
   with db_reader:
     for row in db_reader.rows_iter:
       if key not in result:
-        result[key] = []
-      result[key].append(row[column])
+        result[row[key]] = []
+      result[row[key]].append(row[column])
   return result
 
 extract_packfiles()

@@ -19,6 +19,30 @@ python generate.py "path/to/rpfm_cli.exe"
    - mark the many_more_stats.pack mod as active
    - click play
 
+### Total War Rome 2
+
+#### Features
+
+- The dynamic stat view has been sorted to have the same order for all units and extended to show more stats at the same time where possible
+- Unit's otherwise inaccessible base stats are visible in the description window of the unit tab (it's a bit cramped, that's in order to make things fit in the quick battle screen):
+    - missile block chance
+    - campaign range
+    - effects of dismounting a cavalry unit
+    - stat debuffs for projectiles
+    - stat changes between different types of arrows
+    - many more
+- Abilities have their tooltips augmented to show the exact stat effects on the units
+
+#### Screenshots
+
+![Example 6](rome2_ability_tooltip_1.png)
+![Example 7](rome2_ability_tooltip_2.png)
+![Example 1](rome2_artillery.png)
+![example 2](rome2_general.png)
+![Example 3](rome2_melee.png)
+![Example 4](rome2_archer.png)
+![Example 5](rome2_mounted_archer.png)
+
 ### Total War Atilla
 
 #### Features
@@ -30,18 +54,15 @@ python generate.py "path/to/rpfm_cli.exe"
 - Hover over the unit name on the unit card to get a more detailed view of the unit's base stats:
     - campaign range
     - effects of dismounting a cavalry unit
-    - damage bonuses
+    - projectile effects, like explosions
+    - many more
 
 #### Screenshots
 
-![Example general unit](attila_general.png)
-![example artillery](attila_artillery.png)
-![Example archer](attila_archer.png)
+![Example 1](attila_1.png)
+![example 2](attila_2.png)
+![Example 3](attila_3.png)
 
 ### Total War Warhammer 2
-
-TBD
-
-### Total War Rome 2
 
 TBD
