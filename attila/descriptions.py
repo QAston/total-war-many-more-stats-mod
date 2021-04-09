@@ -1,181 +1,194 @@
 import csv
+import os
+
+
+class TWDBRow():
+  def __init__(self, key_ids, row):
+    self.key_ids = key_ids
+    self.row = row
+
+  def __getitem__(self, key):
+    return self.row[self.key_ids[key]]
+
+  def __setitem__(self, key, value):
+    self.row[self.key_ids[key]] = value
+
+  def copy(self):
+    return TWDBRow(self.key_ids, self.row.copy())
+
+class TWDBReader():
+  def __init__(self, tablename):
+    self.tablename = tablename
+
+class TWDBReader():
+  def __init__(self, tablename):
+    self.tablename = tablename
+    self.head_rows = None
+
+  def _read_header(self):
+    self.tsv_file = open("extract/db/" + self.tablename + "/" + self.tablename[0:-7] + ".tsv", encoding="utf-8")
+    self.read_tsv = csv.reader(self.tsv_file, delimiter="\t")
+    self.head_rows = []
+    self.head_rows.append(next(self.read_tsv))
+    self.head_rows.append(next(self.read_tsv))
+    self.key_ids = {}
+    i = 0
+    for key in self.head_rows[1]:
+        self.key_ids[key] = i
+        i = i + 1
+
+  def __enter__(self):
+    self._read_header()
+    self.rows_iter = map(lambda row: TWDBRow(self.key_ids, row), self.read_tsv)
+
+  def __exit__(self, exc_type, exc_value, exc_tb):
+    self.tsv_file.close()
+
+  def make_writer(self):
+    if self.head_rows is None:
+      self._read_header()
+    self.tsv_file.close()
+    return TWDBWriter(self.tablename, self.head_rows, self.key_ids)
+
+class TWDBWriter():
+  def __init__(self, tablename, head_rows, key_ids):
+    self.tablename = tablename
+    self.head_rows = head_rows
+    self.key_ids = key_ids
+    self.new_rows = []
+
+  def write(self):
+    os.makedirs("output/db/" + self.tablename + "/", exist_ok=True)
+    self.tsv_file = open("output/db/" + self.tablename + "/" + self.tablename[0:-7] + ".tsv", 'w', newline='', encoding="utf-8")
+    self.tsv_writer = csv.writer(self.tsv_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
+    for row in self.head_rows:
+      self.tsv_writer.writerow(row)
+    for row in self.new_rows:
+      self.tsv_writer.writerow(row.row)
+    self.tsv_file.close()
+
+  def make_row(self):
+    return TWDBRow(self.key_ids, ["" * len(self.head_rows[1])])
+
+class TWLocDBReader():
+  def __init__(self, tablename):
+    self.tablename = tablename
+    self.head_rows = None
+
+  def _read_header(self):
+    self.tsv_file = open("extract/text/db/" + self.tablename + ".tsv", encoding="utf-8")
+    self.read_tsv = csv.reader(self.tsv_file, delimiter="\t")
+    self.head_rows = []
+    self.head_rows.append(next(self.read_tsv))
+    self.head_rows.append(next(self.read_tsv))
+    self.key_ids = {}
+    i = 0
+    for key in self.head_rows[1]:
+        self.key_ids[key] = i
+        i = i + 1
+
+  def __enter__(self):
+    self._read_header()
+    self.rows_iter = map(lambda row: TWDBRow(self.key_ids, row), self.read_tsv)
+        
+  def __exit__(self, exc_type, exc_value, exc_tb):
+    self.tsv_file.close()
+
+  def make_writer(self):
+    if self.head_rows is None:
+      self._read_header()
+    self.tsv_file.close()
+    return TWLocDBWriter(self.tablename, self.head_rows, self.key_ids)
+
+class TWLocDBWriter():
+  def __init__(self, tablename, head_rows, key_ids):
+    self.tablename = tablename
+    self.head_rows = head_rows
+    self.key_ids = key_ids
+    self.new_rows = []
+
+  def write(self):
+    os.makedirs("output/text/db/", exist_ok=True)
+    self.tsv_file = open("output/text/db/" + self.tablename + ".tsv", 'w', newline='', encoding="utf-8")
+    self.tsv_writer = csv.writer(self.tsv_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
+    for row in self.head_rows:
+      self.tsv_writer.writerow(row)
+    for row in self.new_rows:
+      self.tsv_writer.writerow(row.row)
+    self.tsv_file.close()
+
+  def make_row(self):
+    return TWDBRow(self.key_ids, ["" * len(self.head_rows[1])])
+
+def read_to_dict(db_reader, key="key"):
+  result = {}
+  with db_reader:
+    for row in db_reader.rows_iter:
+      result[row[key]] = row
+  return result
+
+def read_to_dict_of_lists(db_reader, key="key"):
+  result = {}
+  with db_reader:
+    for row in db_reader.rows_iter:
+      if key not in result:
+        result[key] = []
+      result[key].append(row)
+  return result
+
+def read_column_to_dict(db_reader, key, column):
+  result = {}
+  with db_reader:
+    for row in db_reader.rows_iter:
+      result[row[key]] = row[column]
+  return result
+
+def read_column_to_dict_of_lists(db_reader, key, column):
+  result = {}
+  with db_reader:
+    for row in db_reader.rows_iter:
+      if key not in result:
+        result[key] = []
+      result[key].append(row[column])
+  return result
+
 
 # shield
-tsv_file = open("unit_shield_types_tables_unit_shield_types.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-shields = {}
-
-rowid = 0
-shields_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        shields_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      shields[row[shields_keys["key"]]] = row[shields_keys["missile_block_chance"]]
-tsv_file.close()
+shields_reader = TWDBReader("unit_shield_types_tables")
+shields = read_column_to_dict(shields_reader, "key", "missile_block_chance")
 
 # melee
-tsv_file = open("melee_weapons_tables_melee_weapons.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-melee = {}
-
-rowid = 0
-melee_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        melee_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      melee[row[melee_keys["key"]]] = row
-tsv_file.close()
+melee_reader = TWDBReader("melee_weapons_tables")
+melee = read_to_dict(melee_reader)
 
 # armour
-tsv_file = open("unit_armour_types_tables_unit_armour_types.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-armour = {}
-
-rowid = 0
-armour_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        armour_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      armour[row[armour_keys["key"]]] = row
-tsv_file.close()
+armour_reader = TWDBReader("unit_armour_types_tables")
+armour = read_to_dict(armour_reader)
 
 # projectiles
-tsv_file = open("projectiles_tables_projectiles.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-projectiles = {}
-
-rowid = 0
-projectiles_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        projectiles_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      projectiles[row[projectiles_keys["key"]]] = row
-tsv_file.close()
+projectiles_reader = TWDBReader("projectiles_tables")
+projectiles = read_to_dict(projectiles_reader)
 
 # ability phase stats
-tsv_file = open("special_ability_phase_stat_effects_tables_special_ability_phase_stat_effects.tsv")
+ability_phase_stats_reader = TWDBReader("special_ability_phase_stat_effects_tables")
+ability_phase_stats = read_to_dict_of_lists(ability_phase_stats_reader, "phase")
 
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-ability_phase_stats = {}
-
-rowid = 0
-ability_phase_stats_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        ability_phase_stats_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-    key = row[ability_phase_stats_keys["phase"]]
-    if key not in ability_phase_stats:
-      ability_phase_stats[key] = []
-    ability_phase_stats[key].append(row)
-tsv_file.close()
 
 # projectiles_explosions_tables_projectiles_explosions
-tsv_file = open("projectiles_explosions_tables_projectiles_explosions.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-projectiles_explosions = {}
-
-rowid = 0
-projectiles_explosions_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        projectiles_explosions_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      projectiles_explosions[row[projectiles_explosions_keys["key"]]] = row
-tsv_file.close()
+projectiles_explosions_reader = TWDBReader("projectiles_explosions_tables")
+projectiles_explosions = read_to_dict(projectiles_explosions_reader)
 
 # weapon_to_projectile
-tsv_file = open("missile_weapons_tables_missile_weapons.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-weapon_projectile = {}
-
-rowid = 0
-weapon_projectile_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        weapon_projectile_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      weapon_projectile[row[weapon_projectile_keys["key"]]] = row[weapon_projectile_keys["default_projectile"]]
-tsv_file.close()
+weapon_projectile_reader = TWDBReader("missile_weapons_tables")
+weapon_projectile = read_column_to_dict(weapon_projectile_reader, "key", "default_projectile")
 
 # weapon additional projectiles
-tsv_file = open("missile_weapons_to_projectiles_tables_missile_weapons_to_projectiles.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-weapon_alt_projectile = {}
-
-rowid = 0
-weapon_alt_projectile_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        weapon_alt_projectile_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      key = row[weapon_alt_projectile_keys["missile_weapon"]]
-      if key not in weapon_alt_projectile:
-        weapon_alt_projectile[key] = []
-      weapon_alt_projectile[key].append(row[weapon_alt_projectile_keys["projectile"]])
-tsv_file.close()
+weapon_alt_projectile_reader = TWDBReader("missile_weapons_to_projectiles_tables")
+weapon_alt_projectile = read_column_to_dict_of_lists(weapon_alt_projectile_reader, "missile_weapon", "projectile")
 
 # engine_to_weapon
-tsv_file = open("battlefield_engines_tables_battlefield_engines.tsv")
-
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-engine_weapon = {}
-
-rowid = 0
-engine_weapon_keys = {}
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        engine_weapon_keys[key] = i
-        i = i + 1
-  if rowid > 2:
-      engine_weapon[row[engine_weapon_keys["key"]]] = row[engine_weapon_keys["missile_weapon"]]
-tsv_file.close()
+engine_weapon_reader = TWDBReader("battlefield_engines_tables")
+engine_weapon = read_column_to_dict(engine_weapon_reader, "key", "missile_weapon")
 
 def difftostr(stat):
   if stat > 0:
@@ -195,210 +208,169 @@ def statstr(stat):
   return "[[col:yellow]]" + str(stat) +"[[/col]]"
 
 # unit descriptions
-tsv_file = open("unit_description_short_texts.loc.tsv")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-descriptions_keys = {}
+descriptions_reader = TWLocDBReader("unit_description_short_texts")
+descriptions_writer = descriptions_reader.make_writer()
+
 descriptions = {}
-rowid = 0
-new_descriptions = []
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        descriptions_keys[key] = i
-        i = i + 1
-  #if rowid <= 2:
-  new_descriptions.append(row)
-  if rowid > 2:
-      descid = row[descriptions_keys["key"]].replace("unit_description_short_texts_text_", "", 1)
-      descriptions[descid] = row
+with descriptions_reader:
+  for row in descriptions_reader.rows_iter:
+    descriptions_writer.new_rows.append(row)
+    descid = row['key'].replace("unit_description_short_texts_text_", "", 1)
+    descriptions[descid] = row
 
 # description id keys
-tsv_file = open("unit_description_short_texts_tables_unit_description_short_texts.tsv")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
-new_unit_description_ids = []
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  #if rowid <= 2:
-  new_unit_description_ids.append(row)
+unit_description_id_reader = TWDBReader("unit_description_short_texts_tables")
+unit_description_id_writer = unit_description_id_reader.make_writer()
 
 # units
-tsv_file = open("land_units_tables_land_units.tsv")
-read_tsv = csv.reader(tsv_file, delimiter="\t")
+land_units_reader = TWDBReader("land_units_tables")
+land_units_writer = land_units_reader.make_writer()
 
-new_units = []
+with land_units_reader:
+  for row in land_units_reader.rows_iter:
+    descid = row['short_description_text']
+    unit = row.copy()
+    desc = descriptions[descid].copy()
+    newdescid = unit['key'] + "_statdesc"
+    unit['short_description_text'] = newdescid
+    desc['key'] = "unit_description_short_texts_text_" + newdescid
+    new_descid_row = unit_description_id_writer.make_row()
+    new_descid_row["key"] = newdescid
+    unit_description_id_writer.new_rows.append(new_descid_row)
+    land_units_writer.new_rows.append(unit)
+    descriptions_writer.new_rows.append(desc)
 
-units_keys = {}
-rowid = 0
-for row in read_tsv:
-  rowid = rowid + 1
-  i = 0
-  if rowid == 2:
-      for key in row:
-        units_keys[key] = i
-        i = i + 1
-  if rowid <= 2:
-    new_units.append(row)
-  if rowid > 2:
-      descid = row[units_keys['short_description_text']]
-      unit = row.copy()
-      desc = descriptions[descid].copy()
-      newdescid = unit[units_keys['key']] + "_statdesc"
-      unit[units_keys['short_description_text']] = newdescid
-      desc[descriptions_keys["key"]] = "unit_description_short_texts_text_" + newdescid
-      new_unit_description_ids.append([newdescid])
-      new_units.append(unit)
-      new_descriptions.append(desc)
+    stats = {}
+    desc_text = desc['text']
+    desc['text'] = ""
 
-      stats = {}
-      desc_text = desc[descriptions_keys["text"]]
-      desc[descriptions_keys["text"]] = ""
+    stats["campaign_range"] = unit['campaign_action_points']
+    if unit['shield'] != 'none':
+      stats["missile_block"] = shields[unit['shield']] + "%"
+    
+    if unit['primary_melee_weapon'] != '':
+        meleeid = unit['primary_melee_weapon']
+        meleerow = melee[meleeid]
+        if meleerow['armour_piercing'] == 'true':
+          stats["melee_wpn_half_enemy_armor_piercing"] = 'true'
+        if meleerow['shield_piercing'] == 'true':
+          stats["melee_wpn_full_enemy_shield_piercing"] = 'true'
+        stats["melee_ap_dmg"] = meleerow['ap_damage']
+    if unit['armour'] != '':
+        armourid = unit['armour']
+        armourrow = armour[armourid]
+        if armourrow['weak_vs_missiles'] == '1':
+          stats["armour_weak_v_missiles"] = 'true'
+        if armourrow['bonus_vs_missiles'] == '1':
+          stats["armour_bonus_v_missiles"] = 'true'
+    missileweapon = unit['primary_missile_weapon']
+    if unit['engine'] != '':
+      missileweapon = engine_weapon[unit['engine']]
+    if missileweapon != '':
+        stats["accuracy"] = unit['accuracy']
+        stats["reload"] = unit['reload']
 
-      stats["campaign_range"] = unit[units_keys['campaign_action_points']]
-      if unit[units_keys['shield']] != 'none':
-        stats["missile_block"] = shields[unit[units_keys['shield']]] + "%"
-      
-      if unit[units_keys['primary_melee_weapon']] != '':
-          meleeid = unit[units_keys['primary_melee_weapon']]
-          meleerow = melee[meleeid]
-          if meleerow[melee_keys['armour_piercing']] == 'true':
-            stats["melee_wpn_half_enemy_armor_piercing"] = 'true'
-          if meleerow[melee_keys['shield_piercing']] == 'true':
-            stats["melee_wpn_full_enemy_shield_piercing"] = 'true'
-          stats["melee_ap_dmg"] = meleerow[melee_keys['ap_damage']]
-      if unit[units_keys['armour']] != '':
-          armourid = unit[units_keys['armour']]
-          armourrow = armour[armourid]
-          if armourrow[armour_keys['weak_vs_missiles']] == '1':
-            stats["armour_weak_v_missiles"] = 'true'
-          if armourrow[armour_keys['bonus_vs_missiles']] == '1':
-            stats["armour_bonus_v_missiles"] = 'true'
-      missileweapon = unit[units_keys['primary_missile_weapon']]
-      if unit[units_keys['engine']] != '':
-        missileweapon = engine_weapon[unit[units_keys['engine']]]
-      if missileweapon != '':
-          stats["accuracy"] = unit[units_keys['accuracy']]
-          stats["reload"] = unit[units_keys['reload']]
+    for stat in stats:
+        desc['text'] = " " + desc['text'] + " " + stat + " [[col:yellow]]" + stats[stat]+"[[/col]]\\\\n"
+    if unit['mount'] != '' and unit['class'] != 'elph':
+      dismounteddiff = ""
+      md = int(unit['dismounted_melee_defense']) - int(unit['melee_defence'])
+      if md != 0:
+        dismounteddiff += " melee_def " + difftostr(md)
+      ma = int(unit['dismounted_melee_attack']) - int(unit['melee_attack'])
+      if ma != 0:
+        dismounteddiff += " melee_att " + difftostr(ma)
+      cb = int(unit['dismounted_charge_bonus']) - int(unit['charge_bonus'])
+      if cb != 0:
+        dismounteddiff += " charge_bonus " + difftostr(cb)
+      if dismounteddiff != "":
+        desc['text'] += " dismounted stats: " + dismounteddiff+ ";"
 
-      for stat in stats:
-          desc[descriptions_keys["text"]] = " " + desc[descriptions_keys["text"]] + " " + stat + " [[col:yellow]]" + stats[stat]+"[[/col]]\\\\n"
-      if unit[units_keys['mount']] != '' and unit[units_keys['class']] != 'elph':
-        dismounteddiff = ""
-        md = int(unit[units_keys['dismounted_melee_defense']]) - int(unit[units_keys['melee_defence']])
-        if md != 0:
-          dismounteddiff += " melee_def " + difftostr(md)
-        ma = int(unit[units_keys['dismounted_melee_attack']]) - int(unit[units_keys['melee_attack']])
-        if ma != 0:
-          dismounteddiff += " melee_att " + difftostr(ma)
-        cb = int(unit[units_keys['dismounted_charge_bonus']]) - int(unit[units_keys['charge_bonus']])
-        if cb != 0:
-          dismounteddiff += " charge_bonus " + difftostr(cb)
-        if dismounteddiff != "":
-          desc[descriptions_keys["text"]] += " dismounted stats: " + dismounteddiff+ ";"
+    if missileweapon != '':
+        projectiletext = " default shot:\\\\n"
+        projectileid = weapon_projectile[missileweapon]
+        projectilerow = projectiles[projectileid]
+        projectiletext += " ap_dmg " + statstr(projectilerow['ap_damage'])
+        projectiletext += " marksmanship " + statstr(projectilerow['marksmanship_bonus'])
+        if projectilerow['bonus_v_infantry'] != '0':
+          projectiletext += " bonus_v_inf " + statstr(projectilerow['bonus_v_infantry'])
+        if projectilerow['bonus_v_cavalry'] != '0':
+          projectiletext += " bonus_v_large " + statstr(projectilerow['bonus_v_cavalry'])
+        if projectilerow['explosion_type'] != '':
+          explosionrow = projectiles_explosions[projectilerow['explosion_type']]
+          projectiletext += " explosion_dmg " + statstr(explosionrow['detonation_damage'])
+          projectiletext += " explosion_radius " + statstr(explosionrow['detonation_radius'])
+        
+        debuff = projectilerow['overhead_stat_effect']
+        debufftype = "overhead"
+        if debuff == '':
+          debuff = projectilerow['contact_stat_effect']
+          debufftype = "contact"
+        #if debuff != '':
+          # effects = ability_phase_stats[debuff]
+          # projectiletext += " " + debufftype + " debuff ("
+          # for effect in effects:
+          #   how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
+          #   if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
+          #     how = ""
+          #   projectiletext += effect[ability_phase_stats_keys["stat"]] + " " + statstr(how + effect[ability_phase_stats_keys["value"]]) + " "
+          # projectiletext += ")"
+        #projectiletext += "; "
+        if missileweapon in weapon_alt_projectile:
+          projectiletext += "\\\\n alt shot: "
+          for altprojectileid in weapon_alt_projectile[missileweapon]:
+            altprojectilerow = projectiles[altprojectileid]
+            name = altprojectilerow['shot_type'].split("_")[-1]
+            if name == 'default':
+              name = altprojectileid
+            projectiletext += name + ": \\\\n"
+            s = int(altprojectilerow['damage']) - int(projectilerow['damage'])
+            if s != 0:
+              projectiletext += " dmg " + difftostr(s)
+            s = int(altprojectilerow['ap_damage']) - int(projectilerow['ap_damage'])
+            if s != 0:
+              projectiletext += " ap_dmg " + difftostr(s)
+            s = float(altprojectilerow['marksmanship_bonus']) - float(projectilerow['marksmanship_bonus'])
+            if s != 0:
+              projectiletext += " marksmanship " + difftostr(s)
+            s = int(altprojectilerow['bonus_v_infantry']) - int(projectilerow['bonus_v_infantry'])
+            if s != 0:
+              projectiletext += " bonus_v_inf " + difftostr(s)
+            s = int(altprojectilerow['bonus_v_cavalry']) - int(projectilerow['bonus_v_cavalry'])
+            if s != 0:
+              projectiletext += " bonus_v_cav " + difftostr(s)
+            s = int(altprojectilerow['effective_range']) - int(projectilerow['effective_range'])
+            if s != 0:
+              projectiletext += " range " + difftostr(s)
+            s = float(altprojectilerow['base_reload_time']) - float(projectilerow['base_reload_time'])
+            if s != 0:
+              projectiletext += " base_reload_time " + negdifftostr(s)
+            s = float(altprojectilerow['calibration_area']) - float(projectilerow['calibration_area'])
+            if s != 0:
+              projectiletext += " calibration_area " + negdifftostr(s)
+            if altprojectilerow['explosion_type'] != '':
+              explosionrow = projectiles_explosions[altprojectilerow['explosion_type']]
+              projectiletext += " explosion_dmg " + statstr(explosionrow['detonation_damage'])
+              projectiletext += " explosion_radius " + statstr(explosionrow['detonation_radius'])
 
-      if missileweapon != '':
-          projectiletext = " default shot:\\\\n"
-          projectileid = weapon_projectile[missileweapon]
-          projectilerow = projectiles[projectileid]
-          projectiletext += " ap_dmg " + statstr(projectilerow[projectiles_keys['ap_damage']])
-          projectiletext += " marksmanship " + statstr(projectilerow[projectiles_keys['marksmanship_bonus']])
-          if projectilerow[projectiles_keys['bonus_v_infantry']] != '0':
-            projectiletext += " bonus_v_inf " + statstr(projectilerow[projectiles_keys['bonus_v_infantry']])
-          if projectilerow[projectiles_keys['bonus_v_cavalry']] != '0':
-            projectiletext += " bonus_v_large " + statstr(projectilerow[projectiles_keys['bonus_v_cavalry']])
-          if projectilerow[projectiles_keys['explosion_type']] != '':
-            explosionrow = projectiles_explosions[projectilerow[projectiles_keys['explosion_type']]]
-            projectiletext += " explosion_dmg " + statstr(explosionrow[projectiles_explosions_keys['detonation_damage']])
-            projectiletext += " explosion_radius " + statstr(explosionrow[projectiles_explosions_keys['detonation_radius']])
-          
-          debuff = projectilerow[projectiles_keys['overhead_stat_effect']]
-          debufftype = "overhead"
-          if debuff == '':
-            debuff = projectilerow[projectiles_keys['contact_stat_effect']]
-            debufftype = "contact"
-          #if debuff != '':
-            # effects = ability_phase_stats[debuff]
-            # projectiletext += " " + debufftype + " debuff ("
-            # for effect in effects:
-            #   how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
-            #   if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
-            #     how = ""
-            #   projectiletext += effect[ability_phase_stats_keys["stat"]] + " " + statstr(how + effect[ability_phase_stats_keys["value"]]) + " "
-            # projectiletext += ")"
-          #projectiletext += "; "
-          if missileweapon in weapon_alt_projectile:
-            projectiletext += "\\\\n alt shot: "
-            for altprojectileid in weapon_alt_projectile[missileweapon]:
-              altprojectilerow = projectiles[altprojectileid]
-              name = altprojectilerow[projectiles_keys['shot_type']].split("_")[-1]
-              if name == 'default':
-                name = altprojectileid
-              projectiletext += name + ": \\\\n"
-              s = int(altprojectilerow[projectiles_keys['damage']]) - int(projectilerow[projectiles_keys['damage']])
-              if s != 0:
-                projectiletext += " dmg " + difftostr(s)
-              s = int(altprojectilerow[projectiles_keys['ap_damage']]) - int(projectilerow[projectiles_keys['ap_damage']])
-              if s != 0:
-                projectiletext += " ap_dmg " + difftostr(s)
-              s = float(altprojectilerow[projectiles_keys['marksmanship_bonus']]) - float(projectilerow[projectiles_keys['marksmanship_bonus']])
-              if s != 0:
-                projectiletext += " marksmanship " + difftostr(s)
-              s = int(altprojectilerow[projectiles_keys['bonus_v_infantry']]) - int(projectilerow[projectiles_keys['bonus_v_infantry']])
-              if s != 0:
-                projectiletext += " bonus_v_inf " + difftostr(s)
-              s = int(altprojectilerow[projectiles_keys['bonus_v_cavalry']]) - int(projectilerow[projectiles_keys['bonus_v_cavalry']])
-              if s != 0:
-                projectiletext += " bonus_v_cav " + difftostr(s)
-              s = int(altprojectilerow[projectiles_keys['effective_range']]) - int(projectilerow[projectiles_keys['effective_range']])
-              if s != 0:
-                projectiletext += " range " + difftostr(s)
-              s = float(altprojectilerow[projectiles_keys['base_reload_time']]) - float(projectilerow[projectiles_keys['base_reload_time']])
-              if s != 0:
-                projectiletext += " base_reload_time " + negdifftostr(s)
-              s = float(altprojectilerow[projectiles_keys['calibration_area']]) - float(projectilerow[projectiles_keys['calibration_area']])
-              if s != 0:
-                projectiletext += " calibration_area " + negdifftostr(s)
-              if altprojectilerow[projectiles_keys['explosion_type']] != '':
-                explosionrow = projectiles_explosions[altprojectilerow[projectiles_keys['explosion_type']]]
-                projectiletext += " explosion_dmg " + statstr(explosionrow[projectiles_explosions_keys['detonation_damage']])
-                projectiletext += " explosion_radius " + statstr(explosionrow[projectiles_explosions_keys['detonation_radius']])
+            debuff = altprojectilerow['overhead_stat_effect']
+            debufftype = "overhead"
+            if debuff == '':
+              debuff = altprojectilerow['contact_stat_effect']
+              debufftype = "contact"
+            #if debuff != '':
+              # effects = ability_phase_stats[debuff]
+              # projectiletext += " " + debufftype + " debuff ("
+              # for effect in effects:
+              #   how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
+              #   if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
+              #     how = ""
+              #   projectiletext += effect[ability_phase_stats_keys["stat"]] + " " + statstr(how + effect[ability_phase_stats_keys["value"]]) + " "
+              # projectiletext += ")"
+            #projectiletext += "; "
+        desc['text'] += projectiletext
+    desc['text'] += "\\\\n\\\\n" + desc_text
 
-              debuff = altprojectilerow[projectiles_keys['overhead_stat_effect']]
-              debufftype = "overhead"
-              if debuff == '':
-                debuff = altprojectilerow[projectiles_keys['contact_stat_effect']]
-                debufftype = "contact"
-              #if debuff != '':
-                # effects = ability_phase_stats[debuff]
-                # projectiletext += " " + debufftype + " debuff ("
-                # for effect in effects:
-                #   how = "*" if effect[ability_phase_stats_keys["how"]] == 'mult' else '+'
-                #   if how == '+' and float(effect[ability_phase_stats_keys["value"]]) < 0:
-                #     how = ""
-                #   projectiletext += effect[ability_phase_stats_keys["stat"]] + " " + statstr(how + effect[ability_phase_stats_keys["value"]]) + " "
-                # projectiletext += ")"
-              #projectiletext += "; "
-          desc[descriptions_keys["text"]] += projectiletext
-      desc[descriptions_keys["text"]] += "\\\\n\\\\n" + desc_text
-tsv_file.close()
-
-# new units
-with open('new_land_units_tables_land_units.tsv', 'w', newline='') as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for unit in new_units:
-      tsv_writer.writerow(unit)
-
-# new descriptions
-with open('new_unit_description_short_texts.loc.tsv', 'w', newline='') as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for unit in new_descriptions:
-      tsv_writer.writerow(unit)
-
-# new description ids
-with open('new_unit_description_short_texts_tables_unit_description_short_texts.tsv', 'w', newline='') as out_file:
-    tsv_writer = csv.writer(out_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for unit in new_unit_description_ids:
-      tsv_writer.writerow(unit)
+land_units_writer.write()
+unit_description_id_writer.write()
+descriptions_writer.write()
