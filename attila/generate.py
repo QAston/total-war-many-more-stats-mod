@@ -1,6 +1,70 @@
 import csv
 import os
+import shutil
+import subprocess
+import argparse
 
+twgame="attila"
+extract_path="extract"
+output_path="output"
+template_path="template"
+mod_name="many_more_stats"
+install_path=os.path.expanduser("~") + f"/Documents/TWMods/{twgame}/{mod_name}.pack"
+twgame_path="C:/Program Files (x86)/Steam/steamapps/common/Total War Attila/"
+
+argparser = argparse.ArgumentParser(description='Generates the mod packfile to Documents/TWMods/')
+argparser.add_argument('path_to_rpfm_cli',
+                   help='path to rpfm_cli.exe used for extracting and creating mod files')
+argparser.add_argument('-g', dest='path_to_game', default=twgame_path,
+                   help=f'path to the main directory of {twgame}(default: {twgame_path})')
+argparser.add_argument('-i', dest='install_path', default=install_path,
+                   help=f'path where to install the mod file (default: {install_path})')
+
+args = argparser.parse_args()
+
+rpfmcli_path=args.path_to_rpfm_cli
+twgame_path= args.path_to_game
+install_path=args.install_path
+
+
+
+
+def run_rpfm(packfile, *args):
+  subprocess.run([rpfmcli_path, "-v", "-g", twgame, "-p", packfile, *args], check=True)
+
+def extract_packfiles():
+  shutil.rmtree(extract_path, ignore_errors=True)
+  shutil.rmtree(output_path, ignore_errors=True)
+  os.makedirs(extract_path, exist_ok=True)
+  run_rpfm(f"{twgame_path}/data/data.pack", "packfile", "-E", extract_path, "dummy", "db")
+  run_rpfm(f"{twgame_path}/data/local_en.pack", "packfile", "-E", extract_path, "dummy", "text")
+
+def make_package():
+  shutil.copytree(template_path, output_path, dirs_exist_ok=True)
+  os.makedirs(os.path.dirname(install_path), exist_ok=True)
+  try:
+    os.remove(install_path)
+  except:
+    pass
+  run_rpfm(install_path, "packfile", "-n")
+  for root, dirs, files in os.walk(output_path+"/db", topdown=False):
+    relroot = os.path.relpath(root, output_path+"/db")
+    for name in files:
+      subprocess.run([rpfmcli_path, "-v", "-g", twgame, "-p", install_path, "packfile", "-a", "db" , relroot.replace("\\", "/") + "/"+ name], cwd=output_path+"/db", check=True)
+  for root, dirs, files in os.walk(output_path+"/text", topdown=False):
+    relroot = os.path.relpath(root, output_path+"/text")
+    for name in files:
+      subprocess.run([rpfmcli_path, "-v", "-g", twgame, "-p", install_path, "packfile", "-a", "text" , relroot.replace("\\", "/") + "/"+ name], cwd=output_path+"/text", check=True)
+
+  run_rpfm(install_path, "packfile", "-l")
+  print(f"Mod package written to: {install_path}")
+  
+
+def extract_db_to_tsv(packfile, tablefile):
+  run_rpfm(f"{twgame_path}/data/{packfile}", "table", "-e", tablefile)
+
+def pack_tsv_to_db(packfile, tablefile):
+  run_rpfm(f"{twgame_path}/data/{packfile}", "table", "-i", tablefile)
 
 class TWDBRow():
   def __init__(self, key_ids, row):
@@ -16,17 +80,14 @@ class TWDBRow():
   def copy(self):
     return TWDBRow(self.key_ids, self.row.copy())
 
-class TWDBReader():
-  def __init__(self, tablename):
-    self.tablename = tablename
-
-class TWDBReader():
-  def __init__(self, tablename):
-    self.tablename = tablename
-    self.head_rows = None
-
+class TWDBReaderImpl():
   def _read_header(self):
-    self.tsv_file = open("extract/db/" + self.tablename + "/" + self.tablename[0:-7] + ".tsv", encoding="utf-8")
+    try:
+      self.tsv_file = open(f"{extract_path}/{self.tsvfile}", encoding="utf-8")
+    except FileNotFoundError:
+      extract_db_to_tsv(self.packfile, f"{extract_path}/{self.tablefile}")
+      self.tsv_file = open(f"{extract_path}/{self.tsvfile}", encoding="utf-8")
+      
     self.read_tsv = csv.reader(self.tsv_file, delimiter="\t")
     self.head_rows = []
     self.head_rows.append(next(self.read_tsv))
@@ -48,74 +109,50 @@ class TWDBReader():
     if self.head_rows is None:
       self._read_header()
     self.tsv_file.close()
-    return TWDBWriter(self.tablename, self.head_rows, self.key_ids)
+    outtsvfile = self.tsvfile
+    if self.outtsvfile is not None:
+      outtsvfile = self.outtsvfile
+    return TWDBWriter(self.tablename, self.tablefile, outtsvfile, self.packfile, self.head_rows, self.key_ids)
+
+class TWDBReader(TWDBReaderImpl):
+  def __init__(self, tablename):
+    self.tablename = tablename
+    self.tablefile = "db/" + self.tablename + "/" + self.tablename[0:-7]
+    self.tsvfile = self.tablefile + ".tsv"
+    self.outtsvfile = None
+    self.head_rows = None
+    self.packfile = "data.pack"
+
+class TWLocDBReader(TWDBReaderImpl):
+  def __init__(self, tablename):
+    self.tablename = tablename
+    self.tablefile = f"text/db/{self.tablename}.loc"
+    self.tsvfile = f"text/db/{self.tablename}.tsv"
+    self.outtsvfile = f"text/db/{self.tablename}.loc.tsv"
+    self.head_rows = None
+    self.packfile = "local_en.pack"
 
 class TWDBWriter():
-  def __init__(self, tablename, head_rows, key_ids):
+  def __init__(self, tablename, tablefile, tsvfile, packfile, head_rows, key_ids):
     self.tablename = tablename
+    self.tablefile = tablefile
+    self.tsvfile = tsvfile
     self.head_rows = head_rows
     self.key_ids = key_ids
     self.new_rows = []
+    self.packfile = packfile
 
   def write(self):
-    os.makedirs("output/db/" + self.tablename + "/", exist_ok=True)
-    self.tsv_file = open("output/db/" + self.tablename + "/" + self.tablename[0:-7] + ".tsv", 'w', newline='', encoding="utf-8")
+    os.makedirs(os.path.dirname(f"{output_path}/{self.tsvfile}"), exist_ok=True)
+    self.tsv_file = open(f"{output_path}/{self.tsvfile}", 'w', newline='', encoding="utf-8")
     self.tsv_writer = csv.writer(self.tsv_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
     for row in self.head_rows:
       self.tsv_writer.writerow(row)
     for row in self.new_rows:
       self.tsv_writer.writerow(row.row)
     self.tsv_file.close()
-
-  def make_row(self):
-    return TWDBRow(self.key_ids, ["" * len(self.head_rows[1])])
-
-class TWLocDBReader():
-  def __init__(self, tablename):
-    self.tablename = tablename
-    self.head_rows = None
-
-  def _read_header(self):
-    self.tsv_file = open("extract/text/db/" + self.tablename + ".tsv", encoding="utf-8")
-    self.read_tsv = csv.reader(self.tsv_file, delimiter="\t")
-    self.head_rows = []
-    self.head_rows.append(next(self.read_tsv))
-    self.head_rows.append(next(self.read_tsv))
-    self.key_ids = {}
-    i = 0
-    for key in self.head_rows[1]:
-        self.key_ids[key] = i
-        i = i + 1
-
-  def __enter__(self):
-    self._read_header()
-    self.rows_iter = map(lambda row: TWDBRow(self.key_ids, row), self.read_tsv)
-        
-  def __exit__(self, exc_type, exc_value, exc_tb):
-    self.tsv_file.close()
-
-  def make_writer(self):
-    if self.head_rows is None:
-      self._read_header()
-    self.tsv_file.close()
-    return TWLocDBWriter(self.tablename, self.head_rows, self.key_ids)
-
-class TWLocDBWriter():
-  def __init__(self, tablename, head_rows, key_ids):
-    self.tablename = tablename
-    self.head_rows = head_rows
-    self.key_ids = key_ids
-    self.new_rows = []
-
-  def write(self):
-    os.makedirs("output/text/db/", exist_ok=True)
-    self.tsv_file = open("output/text/db/" + self.tablename + ".tsv", 'w', newline='', encoding="utf-8")
-    self.tsv_writer = csv.writer(self.tsv_file, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
-    for row in self.head_rows:
-      self.tsv_writer.writerow(row)
-    for row in self.new_rows:
-      self.tsv_writer.writerow(row.row)
-    self.tsv_file.close()
+    pack_tsv_to_db(self.packfile,f"{output_path}/{self.tsvfile}")
+    os.remove(f"{output_path}/{self.tsvfile}")
 
   def make_row(self):
     return TWDBRow(self.key_ids, ["" * len(self.head_rows[1])])
@@ -152,6 +189,7 @@ def read_column_to_dict_of_lists(db_reader, key, column):
       result[key].append(row[column])
   return result
 
+extract_packfiles()
 
 # shield
 shields_reader = TWDBReader("unit_shield_types_tables")
@@ -221,6 +259,9 @@ with descriptions_reader:
 # description id keys
 unit_description_id_reader = TWDBReader("unit_description_short_texts_tables")
 unit_description_id_writer = unit_description_id_reader.make_writer()
+with unit_description_id_reader:
+  for row in unit_description_id_reader.rows_iter:
+    unit_description_id_writer.new_rows.append(row)
 
 # units
 land_units_reader = TWDBReader("land_units_tables")
@@ -374,3 +415,5 @@ with land_units_reader:
 land_units_writer.write()
 unit_description_id_writer.write()
 descriptions_writer.write()
+
+make_package()
