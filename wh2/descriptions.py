@@ -1122,7 +1122,6 @@ for row in read_tsv:
 # unit_abilities_tables - add a passive ability for every weapon effect
 # unit_abilities__.loc -  add both name and tooltip entry for every added ability
 # effect_bonus_value_unit_ability_junctions_tables - copy every entry from effect_bonus_value_missile_weapon_junctions_tables, replace missile weapon id with new ability key
-# todo: use a different table for this (I assume unit_sets_tables + unit_set_to_unit_junctions_tables + unit_set_unit_ability_junctions_tables + effect_bonus_value_unit_set_unit_ability_junctions_tables)
 
 ability_proto_map = {"key": "ikit_claw_missile_tooltip", "requires_effect_enabling": "true", "icon_name": "ranged_weapon_stat", "type": "wh_type_augment", "uniqueness": "wh_main_anc_group_common", "is_unit_upgrade": "false", "is_hidden_in_ui": "false", "source_type": "unit", "is_hidden_in_ui_for_enemy":"false"}
 ability_details_proto_map = {"key": "ikit_claw_missile_tooltip", "num_uses": "-1", "active_time": "-1", "recharge_time": "-1", "initial_recharge": "-1", "wind_up_time": "0",
@@ -2069,3 +2068,49 @@ with open('uied_component_texts__.tsv', 'w', newline='', encoding="utf-8") as ou
 tsv_file.close()
 
 #there's a dynamic accuracy stat that could be displayed on the unit panel, but it's overlapped by attributes and doesn't seem useful (doesn't include marksmanship bonus)
+
+## todo: unit purchaseable effects
+## todo: entity collision rules:
+# REVAMPED ENTITY COLLISION RULES
+# Previously, every collision interaction result (knockback, knockdown and so on) was checked every game tick between every entity. Following a review, we have now added a 2 second grace period between these checks between specific entities. Previously, stats such as Knock Ignore Chance were notably less effective than they were intended to be. The reason for this is that an entity pushing over another might actually be causing 10 checks a second against this, and the unit only has to fail one to go flying. Additionally, this caused a general overperformance of larger entities since they effectively multiplied their chance to knock things they ran into by trying-it-til-it-works. Under the new system, any collision that results in a knock reaction is first rolled against by the knock ignore chance; if the entity makes or fails this check, they are now immune to further knock reactions FROM THAT SPECIFIC OTHER ENTITY for 2 seconds. This ONLY happens if the interaction results in a knock reaction (incidental entity vs entity brushing does not consume your opportunity for a knock).
+
+# What does this mean in practical terms?
+
+# Characters are generally much sturdier on their feet, some notably sturdy characters (Ungrim! He can brace now too!) are almost impossible to knock down
+# All units should generally be a little bit sturdier, though units that were always going to be knocked down due to sheer mass and speed differences will be unaffected
+# It should be harder on average to pull through units attempting to pin you in place, as you no longer get 10 attempts per second to knock down entities you’re walking through.
+# BRACING BEHAVIOUR FOR CHARACTERS
+# Following the discussions around why bracing cannot be performed by the majority of units, we’ve moved to a system where we tag which units can brace manually. This replaces the previous system where bracing was based on a series of logical tests with the unit. We now manually tag who should be able to brace. Under the previous system only multi-entity infantry and monstrous infantry could brace, but that has now expanded to infantry and monstrous infantry single-entity characters. Additionally, any charge defence attribute now also enables bracing for the unit.
+
+# To clarify: characters which are engaged in melee and facing their targets retain their braced status while fighting. This allows them to be far more resistant to knockdowns while actively facing off against bigger creatures or other characters. This is not a new behaviour, but is notably apparent for single entities compared to multi entity units.
+
+# And yes, Ungrim does now finally beat that arch nemesis of his. (Ungrim 1 – Feral Stegadon 57213)
+
+# todo: unit brace tag
+# BRACING BEHAVIOUR FOR CHARACTERS
+# Following the discussions around why bracing cannot be performed by the majority of units, we’ve moved to a system where we tag which units can brace manually. This replaces the previous system where bracing was based on a series of logical tests with the unit. We now manually tag who should be able to brace. Under the previous system only multi-entity infantry and monstrous infantry could brace, but that has now expanded to infantry and monstrous infantry single-entity characters. Additionally, any charge defence attribute now also enables bracing for the unit.
+
+# To clarify: characters which are engaged in melee and facing their targets retain their braced status while fighting. This allows them to be far more resistant to knockdowns while actively facing off against bigger creatures or other characters. This is not a new behaviour, but is notably apparent for single entities compared to multi entity units.
+
+## todo: unit hide in forest tag
+# Who Can Hide in the Forest?
+
+# We took a look at which units can hide in the forest recently, as there were several inconsistencies to how this attribute was being distributed. We’ve now generated some criteria that units must abide by if they should have any hope of hiding in the forests of the Warhammer World:
+
+# Infantry and Cavalry have always been able to hide in the forest, so no changes there
+# Chariots can now hide in forests, whereas they couldn’t previously. We felt that since cavalry could hide, this felt like an arbitrary inconsistency, so now all Chariots can hide
+# This affects all single and multi-entity chariots, including Corpse Carts, War Wagons and Snotling Pump Wagons
+# Monstrous Infantry were a web of inconsistencies. Kroxigors and Skinwolves could hide in the forest, whilst Trolls and Fimir could not. This inconsistency has been fixed, so now all ground-based multiple-entity Monstrous Infantry can hide in forests
+# This change benefits the following units: All Troll Units, Dragon Ogres (not Shaggoths though, nosiree), Animated Hulks, Chaos Spawn, Crypt Horrors and Fimir Warriors
+# Large monsters cannot Hide in Forest as they are absolute chonkers. However some of the shorter monsters can still Hide in Forest (example: Brood Horror, Ancient Salamander)
+# Additionally, units that look like trees can also Hide in Forest
+# Flying Units cannot hide in the Forest, because they fly over the Forest, thus they were never in the Forest to begin with
+# War Machines are generally large and loud, so they cannot hide in the forest… much to Ikit Claw’s dismay
+# Artillery pieces are cumbersome, so they also cannot hide in forests
+# Bolt Throwers on the other hand, are comparatively small and light for Artillery pieces, so they can hide in forests
+# The Casket of Souls can no longer hide in forests. No matter how much Nehekharan magic the Tomb Kings have, they can’t cover up the fact that this unit is a literal vortex of screaming souls, trying to burst out of a casket, that’s rumbling along on a bed of skulls. Not so sneaky.
+
+# todo: projectile table new entry
+  # Projectile Vegetation Grace Periods
+
+  # Projectiles now have the ability to pass through trees for a limited time after being created. This is a global rule that applies to all non-artillery units. This behaviour lasts for a limited duration after the projectile is fired, relative to the speed of the projectile. Significantly reducing instances of units firing weapons into trees that are a few feet from them.
