@@ -8,7 +8,8 @@
 ```
 # in command prompt run:
 cd atilla
-python generate.py "path/to/rpfm/cli"
+python generate.py "path/to/rpfm_cli.exe"
+# for example python generate.py "C:/Program Files/RPFM/rpfm_cli.exe"
 ```
 4. If the buid was successfull the mod should be installed to your RPFM my mods directory (Documents/TWMods)
 5. To install open RPFM -> My mods -> atilla -> many_more_stats.pack, then select PackFile -> Install
@@ -36,3 +37,11 @@ python generate.py "path/to/rpfm/cli"
 ![Example general unit](attila_general.png)
 ![example artillery](attila_artillery.png)
 ![Example archer](attila_archer.png)
+
+### Total War Warhammer 2
+
+TBD
+
+### Total War Rome 2
+
+TBD
