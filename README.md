@@ -19,6 +19,11 @@ python generate.py "path/to/rpfm_cli.exe"
    - mark the many_more_stats.pack mod as active
    - click play
 
+## Compatibility
+
+- due to the nature of how these mods work, they aren't compatible with mods which modify base units
+- also, if a mod adds new units, the new units will not have the stat descriptions
+- the mods need to be regenerated for each version of the game/base packfile
 
 ## Total War Warhammer 2
 
@@ -71,12 +76,13 @@ python generate.py "path/to/rpfm_cli.exe"
 ![](wh2_units_2.png)
 ![](wh2_units_3.png)
 ![](wh2_units_4.png)
-![](wh2_units_5.png)
 
 #### Unit campaign mods
 
 ![](wh2_campaign_unitmods_1.png)
 ![](wh2_campaign_unitmods_2.png)
+![](wh2_campaign_unitmods_3.png)
+![](wh2_campaign_unitmods_4.png)
 
 ## Total War Rome 2
 
@@ -94,13 +100,18 @@ python generate.py "path/to/rpfm_cli.exe"
 
 ### Screenshots
 
-![Example 6](rome2_ability_tooltip_1.png)
-![Example 7](rome2_ability_tooltip_2.png)
+#### Unit base stats
+
 ![Example 1](rome2_artillery.png)
 ![example 2](rome2_general.png)
 ![Example 3](rome2_melee.png)
 ![Example 4](rome2_archer.png)
 ![Example 5](rome2_mounted_archer.png)
+
+#### Ability tooltips
+
+![Example 6](rome2_ability_tooltip_1.png)
+![Example 7](rome2_ability_tooltip_2.png)
 
 ## Total War Atilla
 
