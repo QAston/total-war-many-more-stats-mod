@@ -168,7 +168,7 @@ def read_to_dict_of_lists(db_reader, key="key"):
   result = {}
   with db_reader:
     for row in db_reader.rows_iter:
-      if key not in result:
+      if row[key] not in result:
         result[row[key]] = []
       result[row[key]].append(row)
   return result
@@ -184,7 +184,7 @@ def read_column_to_dict_of_lists(db_reader, key, column):
   result = {}
   with db_reader:
     for row in db_reader.rows_iter:
-      if key not in result:
+      if row[key] not in result:
         result[row[key]] = []
       result[row[key]].append(row[column])
   return result
