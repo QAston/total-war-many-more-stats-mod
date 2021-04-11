@@ -1,5 +1,12 @@
 # Total war: Many more stats mod
 
+## Downloading from Steam
+
+The mods are available on steam (and seem to be doing pretty well):
+* [Warhammer 2: many more unit stats](https://steamcommunity.com/sharedfiles/filedetails/?id=2453864146)
+* [Rome 2: many more unit stats](https://steamcommunity.com/sharedfiles/filedetails/?id=2453825830)
+* [Attila: many more unit stats](https://steamcommunity.com/sharedfiles/filedetails/?id=2453769201)
+
 ## How to build and install the mod
 
 1. Download and configure a release of [RPFM](https://github.com/Frodo45127/rpfm), release 2.4.3 was working fine at the time when this was written.
