@@ -4,10 +4,10 @@
 
 1. Download and configure a release of [RPFM](https://github.com/Frodo45127/rpfm), release 2.4.3 was working fine at the time when this was written.
 2. Install a python3 interpreter, the easiest way to do it is by using Microsoft Store, python 3.8.7 was working fine at the time when this was written.
-3. Run the following in this repository (assuming you want to use the TW:atilla version of the mod)
+3. Run the following in this repository (assuming you want to use the TW:attila version of the mod)
 ```
 # in command prompt run:
-cd atilla
+cd attila
 python generate.py "path/to/rpfm_cli.exe"
 # for example python generate.py "C:/Program Files/RPFM/rpfm_cli.exe"
 ```
