@@ -228,22 +228,76 @@ weapon_alt_projectile = read_column_to_dict_of_lists(weapon_alt_projectile_reade
 engine_weapon_reader = TWDBReader("battlefield_engines_tables")
 engine_weapon = read_column_to_dict(engine_weapon_reader, "key", "missile_weapon")
 
+endl = "\\\\n"
+
+def posstr(stat, indent = 0):
+  return indentstr(indent) + "[[col:green]]" + numstr(stat) +"[[/col]]"
+
+def negstr(stat, indent = 0):
+  return indentstr(indent) + "[[col:red]]" + numstr(stat) +"[[/col]]"
+
+def indentstr(indent):
+  return ("[[col:red]] [[/col]]" * indent)
+
+def modstr(s):
+  stat = float(s)
+  if stat > 0:
+    return posstr(s)
+  if stat < 0:
+    return negstr(s)
+  return statstr(s)
+
+def negmodstr(s):
+  stat = float(s)
+  if stat < 0:
+    return posstr(s)
+  if stat > 0:
+    return negstr(s)
+  return statstr(s)
+
 def difftostr(stat):
   if stat > 0:
-    return "[[col:green]]+" + str(stat) +"[[/col]]"
+    return "+" + posstr(stat)
   if stat < 0:
-    return "[[col:red]]" + str(stat) +"[[/col]]"
+    return negstr(stat)
   return ""
 
 def negdifftostr(stat):
   if stat > 0:
-    return "[[col:red]]+" + str(stat) +"[[/col]]"
+    return "+" + negstr(stat)
   if stat < 0:
-    return "[[col:green]]" + str(stat) +"[[/col]]"
+    return posstr(stat)
   return ""
 
+def try_int(val):
+  try:
+    return int(val, 10)
+  except ValueError:
+    return val
+
+def try_float(val):
+  try:
+    return float(val)
+  except ValueError:
+    return val
+
+def numstr(stat):
+  fstat = try_float(stat)
+  if type(fstat) != float:
+    return str(stat)
+  ifstat = round(fstat, 0)
+  if ifstat == fstat:
+    return str(int(ifstat))
+  return str(round(fstat, 2))
+
+def colstr(s, col):
+  return "[[col:"+ col + "]]" + s +"[[/col]]"
+
 def statstr(stat):
-  return "[[col:yellow]]" + str(stat) +"[[/col]]"
+  return "[[col:yellow]]" + numstr(stat) +"[[/col]]"
+
+def statindent(name, value, indent, fn=statstr):
+  return indentstr(indent) + name + " " + fn(value) + endl
 
 # unit descriptions
 descriptions_reader = TWLocDBReader("unit_description_short_texts")
@@ -317,30 +371,33 @@ with land_units_reader:
       dismounteddiff = ""
       md = int(unit['dismounted_melee_defense']) - int(unit['melee_defence'])
       if md != 0:
-        dismounteddiff += " melee_def " + difftostr(md)
+        dismounteddiff += statindent("melee_def", md, 2, difftostr)
       ma = int(unit['dismounted_melee_attack']) - int(unit['melee_attack'])
       if ma != 0:
-        dismounteddiff += " melee_att " + difftostr(ma)
+        dismounteddiff += statindent("melee_att", ma, 2, difftostr)
       cb = int(unit['dismounted_charge_bonus']) - int(unit['charge_bonus'])
       if cb != 0:
-        dismounteddiff += " charge_bonus " + difftostr(cb)
+        dismounteddiff += statindent("charge_bonus", cb, 2, difftostr)
       if dismounteddiff != "":
-        desc['text'] += " dismounted stats: " + dismounteddiff+ ";"
+        desc['text'] += "dismounted stats: \\\\n" + dismounteddiff+ "\\\\n"
 
     if missileweapon != '':
-        projectiletext = " default shot:\\\\n"
+        projectiletext = "default shot:\\\\n"
         projectileid = weapon_projectile[missileweapon]
         projectilerow = projectiles[projectileid]
-        projectiletext += " ap_dmg " + statstr(projectilerow['ap_damage'])
-        projectiletext += " marksmanship " + statstr(projectilerow['marksmanship_bonus'])
+        projectiletext  += statindent("dmg", projectilerow['damage'], 2)
+        projectiletext  += statindent("ap_dmg", projectilerow['ap_damage'], 2)
+        projectiletext  += statindent("marksmanship_bonus", projectilerow['marksmanship_bonus'], 2)
+        projectiletext  += statindent("effective_range", projectilerow['effective_range'], 2)
+        projectiletext  += statindent("base_reload_time", projectilerow['base_reload_time'], 2)
         if projectilerow['bonus_v_infantry'] != '0':
-          projectiletext += " bonus_v_inf " + statstr(projectilerow['bonus_v_infantry'])
+          projectiletext += statindent("bonus_v_inf", projectilerow['bonus_v_infantry'], 2)
         if projectilerow['bonus_v_cavalry'] != '0':
-          projectiletext += " bonus_v_large " + statstr(projectilerow['bonus_v_cavalry'])
+          projectiletext += statindent("bonus_v_large", projectilerow['bonus_v_cavalry'], 2)
         if projectilerow['explosion_type'] != '':
           explosionrow = projectiles_explosions[projectilerow['explosion_type']]
-          projectiletext += " explosion_dmg " + statstr(explosionrow['detonation_damage'])
-          projectiletext += " explosion_radius " + statstr(explosionrow['detonation_radius'])
+          projectiletext += statindent("explosion_dmg", explosionrow['detonation_damage'], 2)
+          projectiletext += statindent("explosion_radius", explosionrow['detonation_radius'], 2)
         
         debuff = projectilerow['overhead_stat_effect']
         debufftype = "overhead"
@@ -358,7 +415,7 @@ with land_units_reader:
           # projectiletext += ")"
         #projectiletext += "; "
         if missileweapon in weapon_alt_projectile:
-          projectiletext += "\\\\n alt shot: "
+          projectiletext += " alt shot (diff vs default) "
           for altprojectileid in weapon_alt_projectile[missileweapon]:
             altprojectilerow = projectiles[altprojectileid]
             name = altprojectilerow['shot_type'].split("_")[-1]
@@ -367,32 +424,32 @@ with land_units_reader:
             projectiletext += name + ": \\\\n"
             s = int(altprojectilerow['damage']) - int(projectilerow['damage'])
             if s != 0:
-              projectiletext += " dmg " + difftostr(s)
+              projectiletext  += statindent("dmg", s, 2, difftostr)
             s = int(altprojectilerow['ap_damage']) - int(projectilerow['ap_damage'])
             if s != 0:
-              projectiletext += " ap_dmg " + difftostr(s)
+              projectiletext  += statindent("ap_dmg", s, 2, difftostr)
             s = float(altprojectilerow['marksmanship_bonus']) - float(projectilerow['marksmanship_bonus'])
             if s != 0:
-              projectiletext += " marksmanship " + difftostr(s)
+              projectiletext  += statindent("marksmanship", s, 2, difftostr)
             s = int(altprojectilerow['bonus_v_infantry']) - int(projectilerow['bonus_v_infantry'])
             if s != 0:
-              projectiletext += " bonus_v_inf " + difftostr(s)
+              projectiletext  += statindent("bonus_v_inf", s, 2, difftostr)
             s = int(altprojectilerow['bonus_v_cavalry']) - int(projectilerow['bonus_v_cavalry'])
             if s != 0:
-              projectiletext += " bonus_v_cav " + difftostr(s)
+              projectiletext  += statindent("bonus_v_cav", s, 2, difftostr)
             s = int(altprojectilerow['effective_range']) - int(projectilerow['effective_range'])
             if s != 0:
-              projectiletext += " range " + difftostr(s)
+              projectiletext  += statindent("range", s, 2, difftostr)
             s = float(altprojectilerow['base_reload_time']) - float(projectilerow['base_reload_time'])
             if s != 0:
-              projectiletext += " base_reload_time " + negdifftostr(s)
+              projectiletext  += statindent("base_reload_time", s, 2, negdifftostr)
             s = float(altprojectilerow['calibration_area']) - float(projectilerow['calibration_area'])
             if s != 0:
-              projectiletext += " calibration_area " + negdifftostr(s)
+              projectiletext  += statindent("calibration_area", s, 2, negdifftostr)
             if altprojectilerow['explosion_type'] != '':
               explosionrow = projectiles_explosions[altprojectilerow['explosion_type']]
-              projectiletext += " explosion_dmg " + statstr(explosionrow['detonation_damage'])
-              projectiletext += " explosion_radius " + statstr(explosionrow['detonation_radius'])
+              projectiletext += statindent("explosion_dmg", explosionrow['detonation_damage'], 2)
+              projectiletext += statindent("explosion_radius", explosionrow['detonation_radius'], 2)
 
             debuff = altprojectilerow['overhead_stat_effect']
             debufftype = "overhead"
