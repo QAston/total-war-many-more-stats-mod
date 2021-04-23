@@ -2,6 +2,8 @@
 
 ## Downloading from Steam
 
+![](popularity.jpg)
+
 The mods are available on steam (and seem to be doing pretty well):
 * [Warhammer 2: many more unit stats](https://steamcommunity.com/sharedfiles/filedetails/?id=2453864146)
 * [Rome 2: many more unit stats](https://steamcommunity.com/sharedfiles/filedetails/?id=2453825830)
