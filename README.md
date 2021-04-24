@@ -11,11 +11,13 @@ The mods are available on steam (and seem to be doing pretty well):
 
 ## How to build and install the mod
 
-1. Download and configure a release of [RPFM](https://github.com/Frodo45127/rpfm), release 2.4.3 was working fine at the time when this was written.
-2. Install a python3 interpreter, the easiest way to do it is by using Microsoft Store, python 3.8.7 was working fine at the time when this was written.
-3. Run the following in this repository (assuming you want to use the TW:attila version of the mod)
+1. Download this repository using git clone or code -> download zip menu if you're not familiar with git
+2. Download and configure a release of [RPFM](https://github.com/Frodo45127/rpfm), release 2.4.3 was working fine at the time when this was written.
+3. Install a python3 interpreter, the easiest way to do it is by using Microsoft Store, python 3.8.7 was working fine at the time when this was written.
+4. Run the following in this repository (assuming you want to use the TW:attila version of the mod)
 ```
 # in command prompt run:
+cd directory/where/you/downloaded/and/unpacked/the/repository
 cd attila
 python generate.py "path/to/rpfm_cli.exe"
 # for example python generate.py "C:/Program Files/RPFM/rpfm_cli.exe"
@@ -33,6 +35,11 @@ python generate.py "path/to/rpfm_cli.exe"
 - due to the nature of how these mods work, they aren't compatible with mods which modify base units
 - also, if a mod adds new units, the new units will not have the stat descriptions
 - the mods need to be regenerated for each version of the game/base packfile
+
+## Troubleshooting
+
+- if you run the generate.py script and you get an error from RPFM that "there has been a problem extracting the following files", you should try to extract the file using gui (open rpfm, open the data.pack file for the game, right click on the table from the error message and click extract)
+- if the gui extraction fails, it's a problem with either your rpfm install or with your copy of the game, otherwise please report the issue
 
 ## Total War Warhammer 2
 
