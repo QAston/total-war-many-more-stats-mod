@@ -101,6 +101,7 @@ class TWDBReaderImpl():
   def __enter__(self):
     self._read_header()
     self.rows_iter = map(lambda row: TWDBRow(self.key_ids, row), self.read_tsv)
+    return self
 
   def __exit__(self, exc_type, exc_value, exc_tb):
     self.tsv_file.close()
@@ -192,41 +193,42 @@ def read_column_to_dict_of_lists(db_reader, key, column):
 extract_packfiles()
 
 # shield
-shields_reader = TWDBReader("unit_shield_types_tables")
-shields = read_column_to_dict(shields_reader, "key", "missile_block_chance")
+shields = read_column_to_dict(TWDBReader("unit_shield_types_tables"), "key", "missile_block_chance")
 
 # melee
-melee_reader = TWDBReader("melee_weapons_tables")
-melee = read_to_dict(melee_reader)
+melee = read_to_dict(TWDBReader("melee_weapons_tables"))
 
 # armour
-armour_reader = TWDBReader("unit_armour_types_tables")
-armour = read_to_dict(armour_reader)
+armour = read_to_dict(TWDBReader("unit_armour_types_tables"))
 
 # projectiles
-projectiles_reader = TWDBReader("projectiles_tables")
-projectiles = read_to_dict(projectiles_reader)
+projectiles = read_to_dict(TWDBReader("projectiles_tables"))
 
 # ability phase stats
-ability_phase_stats_reader = TWDBReader("special_ability_phase_stat_effects_tables")
-ability_phase_stats = read_to_dict_of_lists(ability_phase_stats_reader, "phase")
+ability_phase_stats = read_to_dict_of_lists(TWDBReader("special_ability_phase_stat_effects_tables"), "phase")
 
+# mount_to_entity
+mount_entity = read_column_to_dict(TWDBReader("mounts_tables"), "key", "entity")
 
 # projectiles_explosions_tables_projectiles_explosions
-projectiles_explosions_reader = TWDBReader("projectiles_explosions_tables")
-projectiles_explosions = read_to_dict(projectiles_explosions_reader)
+projectiles_explosions = read_to_dict(TWDBReader("projectiles_explosions_tables"))
 
 # weapon_to_projectile
-weapon_projectile_reader = TWDBReader("missile_weapons_tables")
-weapon_projectile = read_column_to_dict(weapon_projectile_reader, "key", "default_projectile")
+weapon_projectile = read_column_to_dict(TWDBReader("missile_weapons_tables"), "key", "default_projectile")
 
 # weapon additional projectiles
-weapon_alt_projectile_reader = TWDBReader("missile_weapons_to_projectiles_tables")
-weapon_alt_projectile = read_column_to_dict_of_lists(weapon_alt_projectile_reader, "missile_weapon", "projectile")
+weapon_alt_projectile = read_column_to_dict_of_lists(TWDBReader("missile_weapons_to_projectiles_tables"), "missile_weapon", "projectile")
 
 # engine_to_weapon
-engine_weapon_reader = TWDBReader("battlefield_engines_tables")
-engine_weapon = read_column_to_dict(engine_weapon_reader, "key", "missile_weapon")
+engine_weapon = {}
+engine_entity = {}
+with TWDBReader("battlefield_engines_tables") as db_reader:
+  for row in db_reader.rows_iter:
+    engine_weapon[row["key"]] = row["missile_weapon"]
+    engine_entity[row["key"]] = row["battle_entity"]
+
+# battle entities
+battle_entities = read_to_dict(TWDBReader("battle_entities_tables"))
 
 endl = "\\\\n"
 
@@ -257,14 +259,14 @@ def negmodstr(s):
 
 def difftostr(stat):
   if stat > 0:
-    return "+" + posstr(stat)
+    return colstr("+" + numstr(stat), "green")
   if stat < 0:
     return negstr(stat)
   return ""
 
 def negdifftostr(stat):
   if stat > 0:
-    return "+" + negstr(stat)
+    return colstr("+" + numstr(stat), "red")
   if stat < 0:
     return posstr(stat)
   return ""
@@ -340,6 +342,7 @@ with land_units_reader:
     desc['text'] = ""
 
     stats["campaign_range"] = unit['campaign_action_points']
+    stats["capture_power"] = unit['capture_power']
     if unit['shield'] != 'none':
       stats["missile_block"] = shields[unit['shield']] + "%"
     
@@ -358,11 +361,40 @@ with land_units_reader:
           stats["armour_weak_v_missiles"] = 'true'
         if armourrow['bonus_vs_missiles'] == '1':
           stats["armour_bonus_v_missiles"] = 'true'
+
+    entity = battle_entities[unit['man_entity']]
+    charge_speed = float(entity["charge_speed"]) * 10
+    speed = float(entity["run_speed"]) * 10
+    accel = float(entity["acceleration"])
+    mass = float(entity["mass"])
+    health = int(entity["hit_points"]) + int(unit['bonus_hit_points'])
+    if unit['engine'] != '':
+        # speed characteristics are always overridden by engine and mount, even if engine is engine_mounted == false (example: catapult), verified by comparing stats
+        engine = battle_entities[engine_entity[unit['engine']]]
+        charge_speed = float(engine["charge_speed"]) * 10
+        accel = float(engine["acceleration"])
+        speed = float(engine["run_speed"]) * 10
+        mass += float(engine["mass"])
+        health += int(engine["hit_points"])
+    if unit['mount'] != '':
+        mount = battle_entities[mount_entity[unit['mount']]]
+        # both engine and mount present - always chariots
+        # verified, mount has higher priority than engine when it comes to determining speed (both increasing and decreasing), by comparing stats of units where speed of mount < or >  engine
+        charge_speed = float(mount["charge_speed"]) * 10
+        accel = float(mount["acceleration"])
+        speed = float(mount["run_speed"]) * 10
+        mass += float(mount["mass"])
+        health += int(mount["hit_points"])
+
+    stats["charge_speed"] = str(charge_speed)
+    stats["acceleration"] = str(accel)
+    stats["mass"] = str(mass)
+
     missileweapon = unit['primary_missile_weapon']
     if unit['engine'] != '':
       missileweapon = engine_weapon[unit['engine']]
     if missileweapon != '':
-        stats["accuracy"] = unit['accuracy']
+        stats["accuracy_bonus"] = unit['accuracy']
         stats["reload"] = unit['reload']
 
     for stat in stats:
@@ -387,7 +419,8 @@ with land_units_reader:
         projectilerow = projectiles[projectileid]
         projectiletext  += statindent("dmg", projectilerow['damage'], 2)
         projectiletext  += statindent("ap_dmg", projectilerow['ap_damage'], 2)
-        projectiletext  += statindent("marksmanship_bonus", projectilerow['marksmanship_bonus'], 2)
+        projectiletext  += statindent("fire_dmg", projectilerow['fire_damage'], 2)
+        projectiletext  += statindent("marksman_bonus", projectilerow['marksmanship_bonus'], 2)
         projectiletext  += statindent("effective_range", projectilerow['effective_range'], 2)
         projectiletext  += statindent("base_reload_time", projectilerow['base_reload_time'], 2)
         if projectilerow['bonus_v_infantry'] != '0':
@@ -415,19 +448,21 @@ with land_units_reader:
           # projectiletext += ")"
         #projectiletext += "; "
         if missileweapon in weapon_alt_projectile:
-          projectiletext += " alt shot (diff vs default) "
           for altprojectileid in weapon_alt_projectile[missileweapon]:
             altprojectilerow = projectiles[altprojectileid]
             name = altprojectilerow['shot_type'].split("_")[-1]
             if name == 'default':
               name = altprojectileid
-            projectiletext += name + ": \\\\n"
+            projectiletext += name + " shot vs default:\\\\n"
             s = int(altprojectilerow['damage']) - int(projectilerow['damage'])
             if s != 0:
               projectiletext  += statindent("dmg", s, 2, difftostr)
             s = int(altprojectilerow['ap_damage']) - int(projectilerow['ap_damage'])
             if s != 0:
               projectiletext  += statindent("ap_dmg", s, 2, difftostr)
+            s = float(altprojectilerow['fire_damage']) - float(projectilerow['fire_damage'])
+            if s != 0:
+              projectiletext  += statindent("fire_dmg", s, 2, difftostr)
             s = float(altprojectilerow['marksmanship_bonus']) - float(projectilerow['marksmanship_bonus'])
             if s != 0:
               projectiletext  += statindent("marksmanship", s, 2, difftostr)
