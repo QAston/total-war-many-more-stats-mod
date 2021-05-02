@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import argparse
+import math
 
 twgame="attila"
 extract_path="extract"
@@ -109,7 +110,7 @@ class TWDBReaderImpl():
   def make_writer(self):
     if self.head_rows is None:
       self._read_header()
-    self.tsv_file.close()
+      self.tsv_file.close()
     outtsvfile = self.tsvfile
     if self.outtsvfile is not None:
       outtsvfile = self.outtsvfile
@@ -507,5 +508,143 @@ with land_units_reader:
 land_units_writer.write()
 unit_description_id_writer.write()
 descriptions_writer.write()
+
+kv_rules = read_column_to_dict(TWDBReader("_kv_rules_tables"), "key", "value")
+
+kv_fatigue = read_column_to_dict(TWDBReader("_kv_fatigue_tables"), "key", "value")
+
+kv_morale = read_column_to_dict(TWDBReader("_kv_morale_tables"), "key", "value")
+
+fatigue_order = ["active", "winded", "tired", "very_tired", "exhausted"]
+
+
+fatigue_effects = {}
+with TWDBReader("unit_fatigue_effects_tables") as db_reader:
+  for row in db_reader.rows_iter:
+    key = row["fatigue_level"].replace("threshold_", "", 1)
+    stat = row["stat"].replace("scalar_", "", 1).replace("stat_", "", 1)
+    if key not in fatigue_effects:
+      fatigue_effects[key] = {}
+    fatigue_effects[key][stat] = row["value"]
+
+prev_level = {}
+for fatigue_level in fatigue_order:
+  for stat in prev_level:
+    if stat not in fatigue_effects[fatigue_level]:
+      fatigue_effects[fatigue_level][stat] = prev_level[stat]
+  prev_level = fatigue_effects[fatigue_level]
+
+xp_bonuses = {}
+with TWDBReader("unit_experience_bonuses_tables") as db_reader:
+  for row in db_reader.rows_iter:
+    key = row["stat"].replace("stat_", "", 1)
+    xp_bonuses[key] = row
+
+rank_bonuses = {}
+with TWDBReader("unit_stats_land_experience_bonuses_tables") as db_reader:
+  for row in db_reader.rows_iter:
+    key = row["xp_level"]
+    #rank_fatigue_bonus[key] = row["fatigue"]
+    result = {}
+    rank = int(key)
+    result["fatigue"] = statstr(row["fatigue"])
+    for bonus_stat in xp_bonuses:
+      stat_row = xp_bonuses[bonus_stat]
+      growth_rate = float(stat_row["growth_rate"])
+      growth_scalar = float(stat_row["growth_scalar"])
+      if growth_rate == 0:
+        # verified in game that the stats are using math rounding to integer for exp bonuses
+        result[bonus_stat] = statstr(round(growth_scalar * rank))
+      else: #"base"+"^" + statstr(growth_rate) + "*" + statstr(growth_scalar * rank)
+        result[bonus_stat] = statstr(round((30.0 ** growth_rate) * growth_scalar * rank)) + " " + statstr(round((60.0 ** growth_rate) * growth_scalar * rank))
+    rank_bonuses[key] = result
+
+# stat descriptions
+with TWLocDBReader("ui_unit_stats") as db_reader:
+  db_writer = db_reader.make_writer()
+  for newrow in db_reader.rows_iter:
+    db_writer.new_rows.append(newrow)
+    newtext = ""
+    key = newrow["key"]
+    stats = {}
+    if key == "ui_unit_stats_tooltip_text_stat_melee_attack":
+      newtext += "|| ||Melee hit pct chance formula: " + statstr(kv_rules["melee_hit_chance_base"]) + " + melee_attack - enemy_melee_def, clamp (min: " + statstr(kv_rules["melee_hit_chance_min"]) + " max: " + statstr(kv_rules["melee_hit_chance_max"])  + ")" 
+    if key == "ui_unit_stats_tooltip_text_stat_melee_defence":
+      stats["melee_defence_direction_penalty_coefficient_flank"] = kv_rules["melee_defence_direction_penalty_coefficient_flank"]
+      stats["melee_defence_direction_penalty_coefficient_rear"] = kv_rules["melee_defence_direction_penalty_coefficient_rear"]
+    if key == "ui_unit_stats_tooltip_text_stat_armour":
+      newtext += "|| ||Armour non-ap-dmg-reduction formula: rand(0.5,1) * armour"
+    if key == "ui_unit_stats_tooltip_text_stat_weapon_damage":
+      newtext += "|| Terrain height difference dmg mod max: +/-" + statstr(float(kv_rules["melee_height_damage_modifier_max_coefficient"]) * 100) + "% at diff of +/- " + statstr(kv_rules["melee_height_damage_modifier_max_difference"]) + "m, linearly decreasing to 0"
+    if key == "ui_unit_stats_tooltip_text_stat_charge_bonus":
+      newtext += "|| ||Charge bonus lasts for " + statstr(kv_rules["charge_cool_down_time"] + "s") + " after first contact, linearly going down to 0. ||"
+      newtext += "Charge bonus is added to melee_attack and weapon_damage. Weapon_damage increase is split between ap and base dmg using the ap/base dmg ratio before the bonus.||"
+      newtext += " || Bracing: ||"
+      newtext += indentstr(2) + "bracing is a multiplier (clamped to " +statstr(kv_rules["bracing_max_multiplier_clamp"]) + ") to the mass of the charged unit for comparison vs a charging one||"
+      newtext += indentstr(2) + "to brace the unit must stand still in formation (exact time to get in formation varies) and not attack/fire||"           
+      newtext += indentstr(2) + "bracing from ranks: 1: " + statstr(1.0) + " ranks 2-" + statstr(kv_rules["bracing_calibration_ranks"]) + " add " + statstr((float(kv_rules["bracing_calibration_ranks_multiplier"]) - 1) / (float(kv_rules["bracing_calibration_ranks"])  - 1)) + "||"
+    if key == "ui_unit_stats_tooltip_text_stat_missile_strength":
+      newtext += "|| Terrain height difference dmg mod max: +/-" + statstr(float(kv_rules["missile_height_damage_modifier_max_coefficient"]) * 100) + "% at diff of +/- " + kv_rules["missile_height_damage_modifier_max_difference"] + "m, linearly decreasing to 0||"
+    if key == "ui_unit_stats_tooltip_text_scalar_missile_range":
+      newtext += "|| ||Hit chance when shooting targets hiding in forests/scrub:" + statstr((1 - float(kv_rules["missile_target_in_cover_penalty"]))  * 100) + '||'
+      newtext += "Friendly fire uses bigger hitboxes than enemy fire: height *= " + statstr(kv_rules["projectile_friendly_fire_man_height_coefficient"]) + " radius *= " + statstr(kv_rules["projectile_friendly_fire_man_radius_coefficient"]) + "||" 
+      newtext += "Units with " + statstr("dual") + " trajectory will switch their aim to high if "+ statstr(float(kv_rules["unit_firing_line_of_sight_considered_obstructed_ratio"]) * 100) + "% of LOS is obstructed ||"
+      newtext += "Projectiles with high velocity and low aim are much better at hitting moving enemies."
+      # todo: things like missile penetration, lethality seem to contradict other stat descriptions but don't seem obsolete as they weren't there in shogun2
+      # need to do more testing before adding them in
+    if key == "ui_unit_stats_tooltip_text_scalar_speed":
+      newtext += "|| || Fatigue effects: ||"
+      for fatigue_level in fatigue_order:
+        newtext += fatigue_level + ": "
+        for stat in fatigue_effects[fatigue_level]:
+          newtext += " " + stat_icon[stat] + "" + statstr(float(fatigue_effects[fatigue_level][stat]) * 100) + "%"
+        newtext += "||"
+      newtext += " || Tiring/Resting: ||"
+      kvfatiguevals = ["charging", "climbing_ladders", "combat", "gradient_shallow_movement_multiplier", "gradient_steep_movement_multiplier", "gradient_very_steep_movement_multiplier",
+      "idle", "limbering", "ready", "running", "running_cavalry", "running_artillery_horse", "shooting", "walking", "walking_artillery", "walking_horse_artillery"]
+      for kvfatval in kvfatiguevals:
+        newtext += kvfatval + " " + negmodstr(kv_fatigue[kvfatval]) + "||"
+    
+    if key == "ui_unit_stats_tooltip_text_stat_morale":
+      moraletext = "Leadership mechanics: ||"
+      moraletext += "total_hp_loss:" + "||"
+      moraletext += indentstr(2) + " 10%:" + modstr(kv_morale["total_casualties_penalty_10"]) + " 20%:" + modstr(kv_morale["total_casualties_penalty_20"]) + " 30%:" + modstr(kv_morale["total_casualties_penalty_30"]) + " 40%:" + modstr(kv_morale["total_casualties_penalty_40"]) + "||"
+      moraletext += indentstr(2) + " 50%:" + modstr(kv_morale["total_casualties_penalty_50"]) + " 60%:" + modstr(kv_morale["total_casualties_penalty_60"]) + " 70%:" + modstr(kv_morale["total_casualties_penalty_70"]) + " 80%:" + modstr(kv_morale["total_casualties_penalty_80"]) + " 90%:" + modstr(kv_morale["total_casualties_penalty_90"]) + "||"
+      moraletext += "60s_hp_loss:" + " 10%:" + modstr(kv_morale["extended_casualties_penalty_10"]) + " 15%:" + modstr(kv_morale["extended_casualties_penalty_15"]) + " 33%:" + modstr(kv_morale["extended_casualties_penalty_33"])  + " 50%:" + modstr(kv_morale["extended_casualties_penalty_50"])  + " 80%:" + modstr(kv_morale["extended_casualties_penalty_80"]) + "||"
+      moraletext += "4s_hp_loss:" + " 6%:" + modstr(kv_morale["recent_casualties_penalty_6"]) + " 10%:" + modstr(kv_morale["recent_casualties_penalty_10"]) + " 15%:" + modstr(kv_morale["recent_casualties_penalty_15"]) + " 33%:" + modstr(kv_morale["recent_casualties_penalty_33"]) + " 50%:" + modstr(kv_morale["recent_casualties_penalty_50"]) + "||"
+      moraletext += "winning combat:" + " " + modstr(kv_morale["winning_combat"]) + " significantly " + modstr(kv_morale["winning_combat_significantly"])   +  " slightly " + modstr(kv_morale["winning_combat_slightly"]) +"||"
+      moraletext += "losing combat:" + " " + modstr(kv_morale["losing_combat"]) + " significantly " + modstr(kv_morale["losing_combat_significantly"]) + "||"
+      moraletext += "charging: " + modstr(kv_morale["charge_bonus"]) + " timeout " + statstr(float(kv_morale["charge_timeout"]) / 10) +"s||"
+      moraletext += "attacked in the flank " + modstr(kv_morale["was_attacked_in_flank"]) +"||"
+      moraletext += "attacked in the rear " + modstr(kv_morale["was_attacked_in_rear"]) +"||"
+      moraletext += "high ground vs all enemies " + modstr(kv_morale["ume_encouraged_on_the_hill"]) + "||"
+      moraletext += "defending walled nonbreached settlement " + modstr(kv_morale["ume_encouraged_fortification"]) + "||"
+      moraletext += "defending on a plaza " + modstr(kv_morale["ume_encouraged_settlement_plaza"]) + "||"
+      moraletext += "artillery:" + " hit " + modstr(kv_morale["ume_concerned_damaged_by_artillery"]) + " near miss (<="+ statstr(math.sqrt(float(kv_morale["artillery_near_miss_distance_squared"])))+") " + modstr(kv_morale["ume_concerned_attacked_by_artillery"]) + "||"
+      moraletext += "projectile hit" + modstr(kv_morale["ume_concerned_attacked_by_projectile"]) + "||"
+      moraletext += "vigor: " + colstr("very_tired ", "fatigue_very_tired") + " " + modstr(kv_morale["ume_concerned_very_tired"])  + colstr(" exhausted ", "fatigue_exhausted") + modstr(kv_morale["ume_concerned_exhausted"]) + '||'
+      moraletext += "army loses: " + modstr(kv_morale["ume_concerned_army_destruction"]) + " power lost: " + statstr((1 - float(kv_morale["army_destruction_alliance_strength_ratio"])) * 100) + "% and balance is " + statstr((1.0 / float(kv_morale["army_destruction_enemy_strength_ratio"])) * 100) + '%||'
+      moraletext += "general's death: " +  modstr(kv_morale["ume_concerned_general_dead"]) + " recently(60s?) " + modstr(kv_morale["ume_concerned_general_died_recently"]) + "||"
+      moraletext += "surprise enemy discovery: " +  modstr(kv_morale["ume_concerned_surprised"]) + " timeout " + statstr(float(kv_morale["surprise_timeout"]) / 10) +"s||"
+      moraletext += "flanks: " + "secure " + modstr(kv_morale["ume_encouraged_flanks_secure"]) + " 1_exposed " + modstr(kv_morale["ume_concerned_flanks_exposed_single"]) + " 2_exposed " + modstr(kv_morale["ume_concerned_flanks_exposed_multiple"]) + " range " + statstr(kv_morale["open_flanks_effect_range"]) + 'm||'
+      moraletext += "routing balance: (" + statstr(kv_morale["routing_unit_effect_distance_flank"]) + "m in front/flanks)" + "||" 
+      moraletext += indentstr(2) + " (allies-enemies, clamp " + negstr(kv_morale["max_routing_friends_to_consider"]) + ")*" + negstr(kv_morale["routing_friends_effect_weighting"]) + " (enemies-allies, clamp " + posstr(kv_morale["max_routing_enemies_to_consider"]) + ")*" + posstr(kv_morale["routing_enemies_effect_weighting"])+ '||'
+      moraletext += "wavering:" + " " + statstr(kv_morale["ums_wavering_threshold_lower"])  + "-" + statstr(kv_morale["ums_wavering_threshold_upper"]) + "||"
+      moraletext += indentstr(2) + "must spend " + statstr(float(kv_morale["waver_base_timeout"]) / 10)  + "s wavering before routing||"
+      moraletext += "broken:" + " " + statstr(kv_morale["ums_broken_threshold_lower"]) + "-" + statstr(kv_morale["ums_broken_threshold_upper"]) + "||"
+      moraletext += indentstr(2) + "can rally after " + statstr(float(kv_morale["broken_finish_base_timeout"]) / 10) + "s - level * " + statstr(float(kv_morale["broken_finish_timer_experience_bonus"]) / 10) + "s||"
+      moraletext += indentstr(2) + "immune to rout for " + statstr(float(kv_morale["post_rally_no_rout_timer"])) + "s after rallying" + "||"
+      moraletext += indentstr(2) + "won't rally if enemies within? "  + statstr(kv_morale["enemy_effect_range"]) + "m" + "||"
+      moraletext += indentstr(2) + "max rally count before shattered "  + statstr(float(kv_morale["shatter_after_rout_count"]) - 1) + "||"
+      moraletext += indentstr(2) + "1st rout shatters units with "  + statstr((1-float(kv_morale["shatter_after_first_rout_if_casulties_higher_than"])) * 100 )  + "% hp loss" + "||"
+      moraletext += indentstr(2) + "2nd rout shatters units with "  + statstr((1-float(kv_morale["shatter_after_second_rout_if_casulties_higher_than"])) * 100 )  + "% hp loss" + "||"
+      moraletext += "shock-rout: last 4s hp loss >=" + statstr(kv_morale["recent_casualties_shock_threshold"]) + "% and morale < 0"
+      newrow["text"] = moraletext
+    
+    # todo: more kv_rules values: missile, collision, etc
+    for s in stats:
+      newtext += "||" + s + ": " + statstr(stats[s])
+    newrow["text"] += newtext
+  db_writer.write()
 
 make_package()
