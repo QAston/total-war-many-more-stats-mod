@@ -791,7 +791,7 @@ ability_details_proto_map = {"key": "ikit_claw_missile_tooltip", "num_uses": "-1
  "target_friends": "false", "target_enemies": "false", "target_ground": "false", "target_intercept_range": "0", "clear_current_order": "false", "unique_id": "17224802351", "mana_cost": "0",
  "min_range": "0", "miscast_chance": "0", "voiceover_state": "vo_battle_special_ability_generic_response", "additional_melee_cp": "0", "additional_missile_cp": "0",
  "target_ground_under_allies": "false", "target_ground_under_enemies": "false", "miscast_global_bonus": "false", "target_self": "true", "spawn_is_transformation": "false", "use_loop_stance": "false",
- "spawn_is_decoy": "false", "only_affect_owned_units": "false" }
+ "spawn_is_decoy": "false", "only_affect_owned_units": "false", "shared_recharge_time": "-1" }
 
 for effectid in effect_bonus_missile_junctions:
   effectrows = effect_bonus_missile_junctions[effectid]
