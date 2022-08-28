@@ -96,7 +96,7 @@ class TWDBReaderImpl():
     self.head_rows.append(next(self.read_tsv))
     self.key_ids = {}
     i = 0
-    for key in self.head_rows[1]:
+    for key in self.head_rows[0]:
         self.key_ids[key] = i
         i = i + 1
 
